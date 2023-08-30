@@ -3,9 +3,9 @@ project(SU3-kkokkos
   LANGUAGES C CXX
   )
 
-SET(EXE32 bench_f32_kokkos.exe)
-SET(EXE64 bench_f64_kokkos.exe)
-set (CMAKE_CUDA_ARCHITECTURES 70 80)
+set(EXE32 bench_f32)
+set(EXE64 bench_f64)
+set(CMAKE_CUDA_ARCHITECTURES 70 80)
 
 
 find_package(Kokkos REQUIRED)
