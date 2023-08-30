@@ -7,22 +7,30 @@ set(CMAKE_CUDA_ARCHITECTURES 70 80)
 set(ALIGN OFF CACHE STRING "Align workloads to include device copies")
 set(CMAKE_CXX_STANDARD 17)
 
+set(SOURCES su3_nn_bench.cpp su3.hpp lattice.hpp)
+
 if (NOT DEFINED MODEL)
     message(FATAL_ERROR "MODEL not specificied, select either Kokkos or RAJA")
 else ()
     message(STATUS "Selected model: ${MODEL}")
 endif ()
 
-find_package(Kokkos REQUIRED)
-
-set(SOURCES su3_nn_bench.cpp su3.hpp lattice.hpp mat_nn_kokkos.hpp)
-
 add_executable (${EXE32} ${SOURCES})
 add_executable (${EXE64} ${SOURCES})
 
-TARGET_LINK_LIBRARIES(${EXE32} Kokkos::kokkos)
-TARGET_LINK_LIBRARIES(${EXE64} Kokkos::kokkos)
+if (${MODEL} STREQUAL "Kokkos")
+    find_package(Kokkos REQUIRED)
+    target_sources(${EXE32} PRIVATE mat_nn_kokkos.hpp)
+    target_sources(${EXE64} PRIVATE mat_nn_kokkos.hpp)
+    target_link_libraries(${EXE32} Kokkos::kokkos)
+    target_link_libraries(${EXE64} Kokkos::kokkos)
+    add_compile_definitions(USE_KOKKOS)
+elseif (${MODEL} STREQUAL "RAJA")
+else ()
+    message(FATAL_ERROR "Invalid model, must be either Kokkos or RAJA")
+endif ()
 
+<<<<<<< HEAD
 if (ALIGN)
     add_compile_definitions(ALIGNED_WORK)
 endif()
