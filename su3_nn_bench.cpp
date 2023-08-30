@@ -140,6 +140,8 @@ void make_lattice(site *s, size_t n, Complx val) {
   #include "mat_nn_hip.hpp"
 #elif USE_KOKKOS
   #include "mat_nn_kokkos.hpp"
+#elif USE_RAJA
+  #include "mat_nn_raja.hpp"
 #else
   #error Unknown programming model
 #endif
