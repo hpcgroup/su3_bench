@@ -7,6 +7,7 @@ set(EXE32 bench_f32)
 set(EXE64 bench_f64)
 set(CMAKE_CUDA_ARCHITECTURES 70 80)
 
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(Kokkos REQUIRED)
 
@@ -21,4 +22,3 @@ TARGET_LINK_LIBRARIES(${EXE64} Kokkos::kokkos)
 ADD_COMPILE_DEFINITIONS(USE_KOKKOS)
 target_compile_definitions(${EXE32} PUBLIC PRECISION=1)
 
-set(CMAKE_CXX_STANDARD 14)
