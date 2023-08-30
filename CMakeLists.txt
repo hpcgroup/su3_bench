@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 3.16)
+
 project(SU3-kkokkos
   LANGUAGES C CXX
   )
@@ -8,6 +9,12 @@ set(EXE64 bench_f64)
 set(CMAKE_CUDA_ARCHITECTURES 70 80)
 
 set(CMAKE_CXX_STANDARD 17)
+
+if (NOT DEFINED MODEL)
+    message(FATAL_ERROR "MODEL not specificied, select either Kokkos or RAJA")
+else ()
+    message(STATUS "Selected model: ${MODEL}")
+endif ()
 
 find_package(Kokkos REQUIRED)
 
