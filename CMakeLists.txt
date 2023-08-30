@@ -8,6 +8,7 @@ set(EXE64 bench_f64)
 set(CMAKE_CUDA_ARCHITECTURES 70 80)
 
 set(ALIGN OFF CACHE STRING "Align workloads to include device copies")
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(Kokkos REQUIRED)
 
