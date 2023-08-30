@@ -30,7 +30,6 @@ else ()
     message(FATAL_ERROR "Invalid model, must be either Kokkos or RAJA")
 endif ()
 
-<<<<<<< HEAD
 if (ALIGN)
     add_compile_definitions(ALIGNED_WORK)
 endif()
