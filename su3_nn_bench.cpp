@@ -197,6 +197,10 @@ int main(int argc, char **argv)
   h_site_view a("a", total_sites);
   h_site_view c("c", total_sites);
   h_su3_matrix_view b("b", 4);
+#elif USE_RAJA
+  chai::ManagedArray<site> a(total_sites);
+  chai::ManagedArray<su3_matrix> b(4);
+  chai::ManagedArray<site> c(total_sites);
 #else
   std::vector<site> a(total_sites);
   std::vector<su3_matrix> b(4);
@@ -234,7 +238,7 @@ int main(int argc, char **argv)
     Complx cc = {0.0, 0.0};
     for(int m=0;m<3;m++) {
       #ifdef MILC_COMPLEX
-        CMULSUM( a[i].link[j].e[k][m], b[j].e[m][l], cc)
+        CMULSUM( a[i].link[j].e[k][m], b[j].e[m][l], cc);
       #elif USE_KOKKOS
         cc += a(i).link[j].e[k][m] * b[j].e[m][l];
       #else
