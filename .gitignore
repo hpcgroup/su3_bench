@@ -1,5 +1,5 @@
 *.o
 *.exe
 *tmp*
-[Bb][Uu][Ii][Ll][Dd]/
+[Bb][Uu][Ii][Ll][Dd]*/
 .cache
