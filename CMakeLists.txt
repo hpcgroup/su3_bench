@@ -48,3 +48,4 @@ endif ()
 
 target_compile_definitions(${EXE32} PUBLIC PRECISION=1)
 
+install(TARGETS ${EXE32} ${EXE64} DESTINATION bin)
