@@ -23,7 +23,7 @@ double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b
             timer.start();
         }
 
-        RAJA::expt::dynamic_forall<policy_list>(device, range, [=] RAJA_HOST_DEVICE (int i) {
+        RAJA::expt::dynamic_forall<policy_list>(3, range, [=] RAJA_HOST_DEVICE (int i) {
             int j = (i % 36) / 9;
             int k = (i % 9) / 3;
             int l = i % 3;
