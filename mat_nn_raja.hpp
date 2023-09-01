@@ -15,7 +15,7 @@ using policy_list = camp::list<RAJA::seq_exec
 
 double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b, chai::ManagedArray<site> &c,
                   size_t total_sites, size_t iterations, size_t threads_per_workgroup, int device) {
-    RAJA::TypedRangeSegment<int> range(0, total_sites);
+    RAJA::RangeSegment range(0, total_sites);
 
     auto timer = RAJA::Timer();
     for (int iters = 0; iters < iterations + warmups; iters++) {
@@ -23,7 +23,7 @@ double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b
             timer.start();
         }
 
-        RAJA::expt::dynamic_forall<policy_list>(2, range, [=] RAJA_HOST_DEVICE (int i) {
+        RAJA::expt::dynamic_forall<policy_list>(device, range, [=] RAJA_HOST_DEVICE (int i) {
             int j = (i % 36) / 9;
             int k = (i % 9) / 3;
             int l = i % 3;
