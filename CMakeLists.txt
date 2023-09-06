@@ -21,24 +21,34 @@ add_executable (${EXE64} ${SOURCES})
 if (${MODEL} STREQUAL "Kokkos")
     target_sources(${EXE32} PRIVATE mat_nn_kokkos.hpp)
     target_sources(${EXE64} PRIVATE mat_nn_kokkos.hpp)
-    
+
     find_package(Kokkos REQUIRED)
     target_link_libraries(${EXE32} Kokkos::kokkos)
     target_link_libraries(${EXE64} Kokkos::kokkos)
     add_compile_definitions(USE_KOKKOS)
+
 elseif (${MODEL} STREQUAL "RAJA")
     target_sources(${EXE32} PRIVATE mat_nn_raja.hpp)
     target_sources(${EXE64} PRIVATE mat_nn_raja.hpp)
 
+    if (${BACKEND} STREQUAL "CUDA")
+       enable_language(CUDA)
+       find_package(CUDA REQUIRED)
+       set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++17 -forward-unknown-to-host-compiler -arch=${CUDA_ARCH} -extended-lambda --expt-relaxed-constexpr -use_fast_math -restrict -keep ${CUDA_EXTRA_FLAGS}")
+       set_source_files_properties(mat_nn_raja.cpp PROPERTIES LANGUAGE CUDA)
+       set_source_files_properties(su3_nn_bench.cpp PROPERTIES LANGUAGE CUDA)
+    endif ()
+
     find_package(RAJA REQUIRED)
     find_package(umpire REQUIRED)
     find_package(chai REQUIRED)
-    
+
     target_link_libraries(${EXE32} PUBLIC RAJA)
     target_link_libraries(${EXE64} PUBLIC RAJA)
     target_link_libraries(${EXE32} PUBLIC chai)
     target_link_libraries(${EXE64} PUBLIC chai)
     add_compile_definitions(USE_RAJA)
+
 else ()
     message(FATAL_ERROR "Invalid model, must be either Kokkos or RAJA")
 endif ()
