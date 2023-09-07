@@ -45,6 +45,7 @@ elseif (${MODEL} STREQUAL "RAJA")
 
     if (ENABLE_CUDA)
         list (APPEND DEPENDS cuda)
+        list (APPEND DEPENDS cuda_runtime)
     endif ()
 
     if (ENABLE_HIP)
