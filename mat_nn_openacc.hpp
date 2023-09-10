@@ -9,15 +9,23 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   d_a = a.data(); len_a = a.size();
   d_b = b.data(); len_b = b.size();
   d_c = c.data(); len_c = c.size();
- 
+
+#ifdef ALIGNED_WORK
+  auto tstart = Clock::now();
+#endif
   // Move A, B and C vectors to the device
   #pragma acc enter data copyin(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
 
   // benchmark loop
+
+#ifndef ALIGNED_WORK
   auto tstart = Clock::now();
+#endif
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
+#endif
     #pragma acc parallel loop gang present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
     for(int i=0;i<total_sites;++i) {
       #pragma acc loop worker vector collapse(3)

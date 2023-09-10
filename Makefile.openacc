@@ -1,8 +1,14 @@
+ALIGNED ?= no
+
 #
 CC = pgc++ -acc -ta=tesla:fastmath,cc70 # -Minfo=accel
 CFLAGS = -O3
 INCLUDES = -DUSE_OPENACC
 DEPENDS = su3.hpp lattice.hpp mat_nn_openacc.hpp
+
+ifeq ($(ALIGNED),yes)
+  CFLAGS += -DALIGNED_WORK
+endif
 
 bench_f32_openacc.exe: su3_nn_bench.cpp $(DEPENDS)
 	$(CC) -DPRECISION=1 $(CFLAGS) $(INCLUDES) -o $@ su3_nn_bench.cpp $(LIBS)
