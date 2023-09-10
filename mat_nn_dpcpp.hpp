@@ -61,6 +61,10 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
 
   std::cout << std::flush;
 
+#ifdef ALIGNED_WORK
+    auto tstart = Clock::now();
+#endif
+
   // allocate device memory
   site*       d_a = (site*)       malloc_device(total_sites * sizeof(site), queue);
   su3_matrix* d_b = (su3_matrix*) malloc_device(4 * sizeof(su3_matrix), queue);
@@ -76,7 +80,9 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
   queue.wait();
 
   // benchmark loop
+#ifndef ALIGNED_WORK
   auto tstart = Clock::now();
+#endif
   for (int iters=0; iters<iterations+warmups; ++iters) {
     if (iters == warmups) {
       queue.wait();
