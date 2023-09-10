@@ -1,3 +1,5 @@
+ALIGNED ?= yes
+
 #
 HIP_PLATFORM=$(shell hipconfig --platform)
 ifeq (${HIP_PLATFORM}, $(filter $(HIP_PLATFORM), nvcc nvidia))
@@ -18,6 +20,10 @@ endif
 
 # USE MILC Complex data types
 #HIPCC_FLAGS += -DMILC_COMPLEX
+
+ifeq ($(ALIGNED),yes)
+  CFLAGS += -DALIGNED_WORK
+endif
 
 CC = hipcc
 CFLAGS = -O3 $(HIPCC_FLAGS) -DUSE_HIP
