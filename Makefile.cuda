@@ -1,3 +1,5 @@
+ALIGNED ?= yes
+
 #
 # depends on a Cuda module being loaded
 CC = nvcc -ccbin g++ -m64 --x cu
@@ -8,6 +10,11 @@ ifeq ($(ARCH),A100)
 else
   CFLAGS += -gencode arch=compute_70,code=sm_70
 endif
+
+ifeq ($(ALIGNED),yes)
+  CFLAGS += -DALIGNED_WORK
+endif
+
 INCLUDES = -DUSE_CUDA #-DMILC_COMPLEX
 DEPENDS = su3.hpp lattice.hpp mat_nn_cuda.hpp
 
