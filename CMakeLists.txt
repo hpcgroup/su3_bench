@@ -9,7 +9,7 @@ SET(EXE32 bench_f32_kokkos.exe)
 SET(EXE64 bench_f64_kokkos.exe)
 set (CMAKE_CUDA_ARCHITECTURES 70 80)
 
-set(ALIGN ON CACHE STRING "Align workloads to include device copies")
+set(ALIGN OFF CACHE STRING "Align workloads to include device copies")
 
 find_package(Kokkos REQUIRED)
 

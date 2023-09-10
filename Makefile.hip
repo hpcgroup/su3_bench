@@ -1,4 +1,4 @@
-ALIGNED ?= yes
+ALIGNED ?= no
 
 #
 HIP_PLATFORM=$(shell hipconfig --platform)

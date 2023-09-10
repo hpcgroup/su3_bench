@@ -1,4 +1,4 @@
-ALIGNED ?= yes
+ALIGNED ?= no
 
 #
 # depends on a Cuda module being loaded
