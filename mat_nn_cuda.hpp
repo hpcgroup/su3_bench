@@ -106,10 +106,12 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 #endif
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups) {
       cudaDeviceSynchronize();
       tstart = Clock::now();
-	  }
+	}
+#endif
     k_mat_nn<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, total_sites);
   }
   cudaDeviceSynchronize();
