@@ -1,4 +1,4 @@
-ALIGNED ?= yes
+ALIGNED ?= no
 
 # VENDOR = intel | intel-anl | nvidia
 VENDOR = nvidia
