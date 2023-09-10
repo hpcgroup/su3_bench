@@ -1,3 +1,6 @@
 *.o
 *.exe
 *tmp*
+
+*[Bb][Uu][Ii][Ll][Dd]*
+*.cache*
