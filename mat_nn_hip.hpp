@@ -108,10 +108,13 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   auto tstart = Clock::now();
 #endif
   for (int iters=0; iters<iterations+warmups; ++iters) {
+        
+#ifndef ALIGNED_WORK
     if (iters == warmups) {
       hipDeviceSynchronize();
       tstart = Clock::now();
 	  }
+#endif
     hipLaunchKernelGGL(k_mat_nn, dim3(blocksPerGrid), dim3(threadsPerBlock), 0, 0, d_a, d_b, d_c, total_sites);
   }
   hipDeviceSynchronize();
