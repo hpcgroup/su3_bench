@@ -36,6 +36,10 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
  
   // Move A and B data to the device, Allocate C data
   double ttotal;
+
+#ifdef ALIGNED_WORK
+    auto tstart = Clock::now();
+#endif
   #pragma omp target data map(to: d_a[0:len_a], d_b[0:len_b]) map(from: d_c[0:len_c])
   {  // begin OpenMP block
 
@@ -54,8 +58,11 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+            
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
+#endif
     #pragma omp target teams distribute num_teams(num_teams) thread_limit(threads_per_team)
     for(int i=0;i<total_sites;++i) {
       #pragma omp parallel for collapse(3)
@@ -90,8 +97,10 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
+#endif
     #pragma omp target teams num_teams(num_teams) thread_limit(threads_per_team)
     {
       #pragma omp parallel
@@ -143,8 +152,10 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
+#endif
     #pragma omp target teams distribute parallel for num_teams(num_teams)  thread_limit(threads_per_team)
     for (int id =0; id < num_work_items; id++) {
       int i = id/36;
@@ -191,8 +202,10 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
+#endif
 #if USE_VERSION == 3
   #ifdef NOTARGET
     #pragma omp parallel for schedule(static)
