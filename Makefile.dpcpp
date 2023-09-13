@@ -1,4 +1,5 @@
-#
+ALIGNED ?= no
+
 # VENDOR = intel | intel-anl | nvidia
 VENDOR = nvidia
 
@@ -29,6 +30,10 @@ else  # intel
     # as a workarround we use our own COMPLEX structure (-DMILC_COMPLEX).
     INCLUDES += -DMILC_COMPLEX
   endif
+endif
+
+ifeq ($(ALIGNED),yes)
+  CFLAGS += -DALIGNED_WORK
 endif
 
 # 32-bit float

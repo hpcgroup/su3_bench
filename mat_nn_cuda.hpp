@@ -75,6 +75,10 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     printf("Using device %d: %s\n", use_device, device_prop.name);
   }
 
+#ifdef ALIGNED_WORK
+    auto tstart = Clock::now();
+#endif
+
   // Declare target storage and copy A and B
   cudaError_t cuErr;
   site *d_a, *d_c;
@@ -97,12 +101,17 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   // benchmark loop
+#ifndef ALIGNED_WORK
   auto tstart = Clock::now();
+#endif
+
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups) {
       cudaDeviceSynchronize();
       tstart = Clock::now();
-	  }
+	}
+#endif
     k_mat_nn<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, total_sites);
   }
   cudaDeviceSynchronize();

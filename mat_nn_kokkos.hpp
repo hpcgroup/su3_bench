@@ -10,6 +10,8 @@ using d_site_view = Kokkos::View<site *, ExecSpace>;
 using d_su3_matrix_view = Kokkos::View<su3_matrix *, ExecSpace>;
 using h_site_view = Kokkos::View<site *, HostExecSpace>;
 using h_su3_matrix_view = Kokkos::View<su3_matrix *, HostExecSpace>;
+
+Kokkos::Timer start;
 //
 //*******************  m_mat_nn.c  (in su3.a) ****************************
 //  void mult_su3_nn( su3_matrix *a,*b,*c )
@@ -25,12 +27,16 @@ double k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
     using member_type = team_policy::member_type;
     team_policy policy(blocksPerGrid, threadsPerBlock);
 
-    Kokkos::Timer start;
+#ifndef ALIGNED_WORK
+    start.reset();
+#endif
     for (size_t iters = 0; iters < iterations + warmups; ++iters) {
+#ifndef ALIGNED_WORK
         if (iters == warmups) {
             Kokkos::fence();
             start.reset();
         }
+#endif
         Kokkos::parallel_for(
             "k_mat_nn", policy, KOKKOS_LAMBDA(const member_type &team) {
                 int myThread =
@@ -65,6 +71,8 @@ double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
         printf("Threads per block set to %zu\n", threadsPerBlock);
         printf("Device number set to %d\n", use_device);
     }
+
+    start.reset();
 
     d_site_view d_a("d_a", total_sites);
     d_site_view d_c("d_c", total_sites);

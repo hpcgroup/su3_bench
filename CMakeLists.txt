@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.16)
-project(SU3-kkokkos
+project(SU3-kokkos
   LANGUAGES C CXX
   )
 
@@ -9,6 +9,7 @@ SET(EXE32 bench_f32_kokkos.exe)
 SET(EXE64 bench_f64_kokkos.exe)
 set (CMAKE_CUDA_ARCHITECTURES 70 80)
 
+set(ALIGN OFF CACHE STRING "Align workloads to include device copies")
 
 find_package(Kokkos REQUIRED)
 
@@ -19,6 +20,10 @@ add_executable (${EXE64} ${SOURCES})
 
 TARGET_LINK_LIBRARIES(${EXE32} Kokkos::kokkos)
 TARGET_LINK_LIBRARIES(${EXE64} Kokkos::kokkos)
+
+if (ALIGN)
+    add_compile_definitions(ALIGNED_WORK)
+endif()
 
 ADD_COMPILE_DEFINITIONS(USE_KOKKOS)
 target_compile_definitions(${EXE32} PUBLIC PRECISION=1)
