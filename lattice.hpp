@@ -8,6 +8,9 @@
 #if defined(USE_CUDA) || defined(USE_HIP) && !defined(MILC_COMPLEX)
   #define USE_THRUST
 #endif
+#if defined(USE_RAJA)
+  #define USE_THRUST
+#endif
   #include "su3.hpp"
 #endif
 
