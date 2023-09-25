@@ -2,16 +2,14 @@
 #include "RAJA/util/Timer.hpp"
 #include <chai/ManagedArray.hpp>
 
-using policy_list = camp::list<RAJA::seq_exec
-                               ,RAJA::simd_exec
 #if defined(RAJA_ENABLE_OPENMP)
-                               ,RAJA::omp_parallel_for_exec
+using policy = RAJA::omp_parallel_for_exec;
+#elif defined(RAJA_ENABLE_CUDA)
+using policy = RAJA::cuda_exec<256>;
+#elif defined(RAJA_ENABLE_HIP)
+using policy = RAJA::hip_exec<256>;
 #endif
-#if defined(RAJA_ENABLE_CUDA)
-                               ,RAJA::cuda_exec<256>
-                               ,RAJA::cuda_exec<512>
-#endif
-                               >;
+
 
 double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b, chai::ManagedArray<site> &c,
                   size_t total_sites, size_t iterations, size_t threads_per_workgroup, int device) {
@@ -23,7 +21,7 @@ double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b
             timer.start();
         }
 
-        RAJA::expt::dynamic_forall<policy_list>(3, range, [=] RAJA_HOST_DEVICE (int i) {
+        RAJA::forall<policy>(range, [=] RAJA_HOST_DEVICE (int i) {
             int j = (i % 36) / 9;
             int k = (i % 9) / 3;
             int l = i % 3;
