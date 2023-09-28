@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.16)
 project(SU3-kokkos LANGUAGES C CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS On)
+
 set(ALIGN OFF CACHE STRING "Align workloads to include device copies")
 set(CMAKE_CXX_STANDARD 17)
 
@@ -11,6 +13,7 @@ if (NOT DEFINED MODEL)
 else ()
     message(STATUS "Selected model: ${MODEL}")
 endif ()
+
 
 if (${MODEL} STREQUAL "Kokkos")
     set(EXE32 bench_f32_kokkos)
@@ -78,6 +81,7 @@ endif ()
 if (ALIGN)
     add_compile_definitions(ALIGNED_WORK)
 endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
 target_compile_definitions(${EXE32} PUBLIC PRECISION=1)
 

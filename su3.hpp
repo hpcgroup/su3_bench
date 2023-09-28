@@ -31,6 +31,8 @@
   #define Complx        thrust::complex<float>
 #elif USE_KOKKOS
   #define Complx        Kokkos::complex<float>
+#elif USE_RAJA
+  #define Complx        thrust::complex<float>
 #else
   #define Complx        std::complex<float>
 #endif
