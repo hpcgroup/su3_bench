@@ -246,8 +246,14 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
 #endif
 
+#ifndef ALIGNED_WORK
   ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
   } // end of OpenMP block, C gets moved back to the host
+
+#ifdef ALIGNED_WORK
+  ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // It is not possible to check for NaNs when the application is compiled with -ffast-math
   // Therefore we print out the calculated checksum as a manual check for the user.
