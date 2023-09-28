@@ -117,11 +117,17 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
   queue.wait();
   } // end of iteration loop
 
+#ifndef ALIGNED_WORK
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // Move the result back to the host side vector
   queue.memcpy(c.data(), d_c, c.size() * sizeof(site));
   queue.wait();
+
+#ifdef ALIGNED_WORK
+  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   free(d_a, queue);
   free(d_b, queue);

@@ -3,7 +3,7 @@ ALIGNED ?= no
 # VENDOR = intel | intel-anl | nvidia
 VENDOR = nvidia
 
-CFLAGS = -O3 -ffast-math
+CFLAGS = -O3
 INCLUDES = -DITERATIONS=100
 DEPENDS = mat_nn_dpcpp.hpp su3.hpp lattice.hpp
 ifdef USE_SYCL
@@ -21,6 +21,16 @@ ifeq ($(VENDOR),nvidia)
     CFLAGS += -Xsycl-target-backend '--cuda-gpu-arch=sm_80'
   else
     CFLAGS += -Xsycl-target-backend '--cuda-gpu-arch=sm_70'
+  endif
+else ifeq ($(VENDOR),amd)
+  CC = clang++
+  DEPENDS += mat_nn_sycl.hpp
+  CFLAGS += -fsycl -fsycl-targets=amdgcn-amd-amdhsa
+  # ARCH = MI50 | MI250X
+  ifeq ($(ARCH),MI50)
+    CFLAGS += -Xsycl-target-backend --offload-arch=gfx906
+  else
+    CFLAGS += -Xsycl-target-backend --offload-arch=gfx90a
   endif
 else  # intel
   CC = dpcpp
