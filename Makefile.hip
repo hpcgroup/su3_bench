@@ -13,6 +13,8 @@ else
   # ARCH = MI60 | MI100
   ifeq ($(ARCH),MI100)
     HIPCC_FLAGS = --offload-arch=gfx908
+  else ifeq ($(ARCH),MI250)
+    HIPCC_FLAGS = --offload-arch=gfx90a
   else
     HIPCC_FLAGS = --offload-arch=gfx906
   endif

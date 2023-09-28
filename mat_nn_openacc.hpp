@@ -52,10 +52,16 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
       }
     }
   }
+#ifndef ALIGNED_WORK
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // move the result back 
   #pragma acc exit data copyout(d_c[0:len_c])
+
+#ifdef ALIGNED_WORK
+  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   return (ttotal /= 1.0e6);
 }
