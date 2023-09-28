@@ -8,7 +8,7 @@
   #define USE_VERSION 2
 #endif
 
-double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, 
+double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c,
               size_t total_sites, size_t iterations, size_t threads_per_team, int use_device)
 {
   size_t num_teams = NUM_TEAMS;
@@ -33,7 +33,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   d_a = a.data(); len_a = a.size();
   d_b = b.data(); len_b = b.size();
   d_c = c.data(); len_c = c.size();
- 
+
   // Move A and B data to the device, Allocate C data
   double ttotal;
 
@@ -47,7 +47,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   auto tstart = Clock::now();
 #if USE_VERSION == 0
   // Baseline implementation
-	// Original intent is to have teams process whole sites, 
+	// Original intent is to have teams process whole sites,
 	//   hence sites are distributed across the teams
 	// However, for the Clang 10.0 OpenMP compiler this has issues in that memory gets
 	//   flushed after each parallel region causing excessive global memory traffic
@@ -58,7 +58,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
-            
+
 #ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
