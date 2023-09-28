@@ -81,10 +81,19 @@ double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
     Kokkos::deep_copy(d_a, a);
     Kokkos::deep_copy(d_b, b);
 
+#ifndef ALIGNED_WORK
     double ttotal = k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
                              blocksPerGrid, threadsPerBlock);
+#else
+    k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
+             blocksPerGrid, threadsPerBlock);
+#endif
 
     Kokkos::deep_copy(c, d_c);
+
+#ifdef ALIGNED_WORK
+    double ttotal = start.seconds();
+#endif
 
     return ttotal;
 }

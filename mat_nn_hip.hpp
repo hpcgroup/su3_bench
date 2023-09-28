@@ -118,11 +118,17 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     hipLaunchKernelGGL(k_mat_nn, dim3(blocksPerGrid), dim3(threadsPerBlock), 0, 0, d_a, d_b, d_c, total_sites);
   }
   hipDeviceSynchronize();
+#ifndef ALIGNED_WORK
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
   CUCHECK(hipGetLastError(), "k_mat_nn kernel Failed");
 
   // copy data back from device
   hipMemcpy(c.data(), d_c, size_c, hipMemcpyDeviceToHost);
+
+#ifdef ALIGNED_WORK
+  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // Deallocate
   hipFree(d_a);

@@ -115,11 +115,18 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     k_mat_nn<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, total_sites);
   }
   cudaDeviceSynchronize();
+
+#ifndef ALIGNED_WORK
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
   CUCHECK(cudaGetLastError(), "k_mat_nn kernel Failed");
 
   // copy data back from device
   cudaMemcpy(c.data(), d_c, size_c, cudaMemcpyDeviceToHost);
+
+#ifdef ALIGNED_WORK
+  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // Deallocate
   cudaFree(d_a);
