@@ -8,6 +8,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(SOURCES su3_nn_bench.cpp su3.hpp lattice.hpp)
 
+macro(register_flag_required NAME DESCRIPTION)
+    list(APPEND CUSTOM_FLAGS_TRIPLE "${NAME}" "${DESCRIPTION}" ON "")
+endmacro()
+
+
 if (NOT DEFINED MODEL)
     message(FATAL_ERROR "MODEL not specificied, select either Kokkos or RAJA")
 else ()
@@ -83,13 +88,37 @@ elseif (${MODEL} STREQUAL "HIP")
     add_executable (${EXE64} ${SOURCES})
 		add_compile_definitions(USE_HIP)
 
-
 		find_package(HIP REQUIRED)
 		find_package(rocthrust REQUIRED)
 
 		target_include_directories(${EXE32} PUBLIC ${rocthrust_INCLUDE_DIR})
 		target_include_directories(${EXE64} PUBLIC ${rocthrust_INCLUDE_DIR})
+elseif (${MODEL} STREQUAL "OMP")
+    set(EXE32 bench_f32_omp)
+    set(EXE64 bench_f64_omp)
+    add_executable (${EXE32} ${SOURCES})
+    add_executable (${EXE64} ${SOURCES})
 
+    add_compile_definitions(USE_OPENMP)
+
+    if(NOT DEFINED ARCH)
+      message(FATAL_ERROR "Specify device architecture -DARCH=")
+    endif()
+    if (NOT DEFINED TARGET)
+      message(FATAL_ERROR "Specify device architecture -DTARGET=AMD|NVIDIA")
+    endif()
+
+    if ("${TARGET}" STREQUAL "NVIDIA")
+      set(OMP_FLAGS "-fopenmp -fopenmp -fopenmp-targets=nvptx64 -Xopenmp-target=nvptx64 -march=${ARCH}")
+    elseif ("${TARGET}" STREQUAL "AMD")
+      set(OMP_FLAGS "-fopenmp -fopenmp-targets=amdgcn-amd-amdhsa -Xopenmp-target=amdgcn-amd-amdhsa  -march=${ARCH}")
+    else()
+      message(FATAL_ERROR "Please specify the TARGET (AMD or NVIDIA)")
+    endif()
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OMP_FLAGS}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OMP_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -foffload-lto")
 else ()
 				message(FATAL_ERROR "Invalid model, must be: Kokkos, RAJA or HIP")
 endif ()
@@ -100,7 +129,7 @@ endif()
 
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
 target_compile_definitions(${EXE32} PUBLIC PRECISION=1)
 
