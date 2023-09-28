@@ -73,6 +73,9 @@ elseif (${MODEL} STREQUAL "RAJA")
     target_link_libraries(${EXE32} PUBLIC umpire)
     target_link_libraries(${EXE64} PUBLIC umpire)
     add_compile_definitions(USE_RAJA)
+    if (KERNEL)
+      add_compile_definitions(__RAJA_KERNEL__)
+    endif()
 
 else ()
     message(FATAL_ERROR "Invalid model, must be either Kokkos or RAJA")
@@ -81,6 +84,9 @@ endif ()
 if (ALIGN)
     add_compile_definitions(ALIGNED_WORK)
 endif()
+
+
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
 target_compile_definitions(${EXE32} PUBLIC PRECISION=1)
