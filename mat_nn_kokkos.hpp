@@ -18,7 +18,7 @@ Kokkos::Timer start;
 //  matrix multiply, no adjoints
 //  C  <-  A*B
 
-double k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
+void k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
                 d_site_view c, int total_sites, int blocksPerGrid,
                 int threadsPerBlock) {
     using team_policy =
@@ -56,7 +56,7 @@ double k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
         Kokkos::fence();
     }
 
-    return (start.seconds());
+    return;
 }
 
 double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
@@ -82,17 +82,18 @@ double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
     Kokkos::deep_copy(d_b, b);
 
 #ifndef ALIGNED_WORK
-    double ttotal = k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
-                             blocksPerGrid, threadsPerBlock);
+    k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
 #else
     k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
              blocksPerGrid, threadsPerBlock);
 #endif
 
-    Kokkos::deep_copy(c, d_c);
-
 #ifdef ALIGNED_WORK
+    Kokkos::deep_copy(c, d_c);
     double ttotal = start.seconds();
+#else
+    double ttotal = start.seconds();
+    Kokkos::deep_copy(c, d_c);
 #endif
 
     return ttotal;
