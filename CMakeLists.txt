@@ -76,9 +76,22 @@ elseif (${MODEL} STREQUAL "RAJA")
     if (KERNEL)
       add_compile_definitions(__RAJA_KERNEL__)
     endif()
+elseif (${MODEL} STREQUAL "HIP")
+    set(EXE32 bench_f32_hip)
+    set(EXE64 bench_f64_hip)
+    add_executable (${EXE32} ${SOURCES})
+    add_executable (${EXE64} ${SOURCES})
+		add_compile_definitions(USE_HIP)
+
+
+		find_package(HIP REQUIRED)
+		find_package(rocthrust REQUIRED)
+
+		target_include_directories(${EXE32} PUBLIC ${rocthrust_INCLUDE_DIR})
+		target_include_directories(${EXE64} PUBLIC ${rocthrust_INCLUDE_DIR})
 
 else ()
-    message(FATAL_ERROR "Invalid model, must be either Kokkos or RAJA")
+				message(FATAL_ERROR "Invalid model, must be: Kokkos, RAJA or HIP")
 endif ()
 
 if (ALIGN)

@@ -215,6 +215,10 @@ int main(int argc, char **argv)
   b.allocate(4);
   chai::ManagedArray<site> c(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
   c.allocate(total_sites);
+#elif USE_HIP
+  std::vector<site, pinned_allocator<site>> a(total_sites);
+  std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
+  std::vector<site, pinned_allocator<site>> c(total_sites);
 #else
   std::vector<site> a(total_sites);
   std::vector<su3_matrix> b(4);
