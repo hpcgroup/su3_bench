@@ -22,30 +22,39 @@ using policy = RAJA::omp_parallel_for_exec;
 
 double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b, chai::ManagedArray<site> &c,
     size_t total_sites, size_t iterations, size_t threads_per_workgroup, int device) {
+
+  constexpr int threads_per_side = 4 * 3 * 3;
+  constexpr int threads_per_block = 256;
+  constexpr int sides_per_block = threads_per_block / threads_per_side;
+  const int teams = (total_sites + sides_per_block -1) / sides_per_block;
   auto timer = RAJA::Timer();
   for (size_t iters = 0; iters < iterations + warmups; ++iters) {
 
-#ifdef __RAJA_LOOP__
+#ifndef __RAJA_KERNEL__
   RAJA::launch<launch_policy>(RAJA::ExecPlace::DEVICE,
-      RAJA::LaunchParams(RAJA::Teams(total_sites), RAJA::Threads(4,3,3)),
+      RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(sides_per_block*4,3,3)),
       [=] RAJA_HOST_DEVICE (RAJA::LaunchContext ctx) {
-        RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, total_sites), [&] (int site) {
-           RAJA::loop<threads_x>(ctx, RAJA::TypedRangeSegment<int>(0, 4), [&] (int j) {
+        RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, (teams)), [&] (int site) {
+           RAJA::loop<threads_x>(ctx, RAJA::TypedRangeSegment<int>(0, sides_per_block *4), [&] (int j) {
              RAJA::loop<threads_y>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int k) {
                 RAJA::loop<threads_z>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int l) {
-                  Complx cc = {0.0, 0.0};
-                  for (int m = 0; m < 3; m++) {
-                    cc += a[site].link[j].e[k][m] * b[j].e[m][l];
-                  }
-                  c[site].link[j].e[k][l] = cc;
+                  const int site_id = j / sides_per_block;
+                  const int my_site = (site * sides_per_block) + site_id;
+                  const int jj = j % 4;
+                  if ( my_site < total_sites ) {
+                    Complx cc = {0.0, 0.0};
+                    for (int m = 0; m < 3; m++) {
+                      cc += a[my_site].link[jj].e[k][m] * b[jj].e[m][l];
+                    }
+                    c[my_site].link[jj].e[k][l] = cc;
+                    }
            });
          });
        });
      });
      });
 #else
-  const int items = 4 * 3 * 3;
-  const int elements = total_sites * items;
+  const int elements = total_sites;
   int RThreads = 256;
   int RTeams = (elements + RThreads -1)/RThreads;
 
