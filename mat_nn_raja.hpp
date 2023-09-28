@@ -79,8 +79,8 @@ double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b
       });
 #endif
   }
-  timer.stop();
   c.move(chai::CPU);
+  timer.stop();
   RAJA::Timer::ElapsedType elapsed = timer.elapsed();
 
   return elapsed;
