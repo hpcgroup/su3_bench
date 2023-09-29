@@ -27,7 +27,7 @@ public:
 
   pointer   allocate(size_type n, const void * = 0) {
               T *t;
-              CUCHECK(hipHostMalloc (&t, n * sizeof(T), 0), "Allocator pinned allocation failed");
+              CUCHECK(hipMallocHost(&t, n * sizeof(T), 0), "Allocator pinned allocation failed");
               return t;
             }
 
@@ -176,6 +176,7 @@ double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_
 
   // copy data back from device
   hipMemcpy(c.data(), d_c, size_c, hipMemcpyDeviceToHost);
+
 #ifdef ALIGNED_WORK
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
 #endif

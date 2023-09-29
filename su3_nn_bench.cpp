@@ -219,6 +219,10 @@ int main(int argc, char **argv)
   std::vector<site, pinned_allocator<site>> a(total_sites);
   std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
   std::vector<site, pinned_allocator<site>> c(total_sites);
+#elif USE_CUDA
+  std::vector<site, pinned_allocator<site>> a(total_sites);
+  std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
+  std::vector<site, pinned_allocator<site>> c(total_sites);
 #else
   std::vector<site> a(total_sites);
   std::vector<su3_matrix> b(4);
