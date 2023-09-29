@@ -9,6 +9,54 @@
 
 #define THREADS_PER_SITE 36
 
+template <class T>
+class pinned_allocator {
+public:
+  typedef size_t    size_type;
+  typedef ptrdiff_t difference_type;
+  typedef T*        pointer;
+  typedef const T*  const_pointer;
+  typedef T&        reference;
+  typedef const T&  const_reference;
+  typedef T         value_type;
+
+  pinned_allocator() {}
+  pinned_allocator(const pinned_allocator&) {}
+
+
+
+  pointer   allocate(size_type n, const void * = 0) {
+              T *t;
+              CUCHECK(cudaHostAlloc (&t, n * sizeof(T), 0), "Allocator pinned allocation failed");
+              return t;
+            }
+
+  void      deallocate(void* p, size_type) {
+              if (p) {
+                cudaFreeHost(p);
+              }
+            }
+
+  pointer           address(reference x) const { return &x; }
+  const_pointer     address(const_reference x) const { return &x; }
+  pinned_allocator<T>&  operator=(const pinned_allocator&) { return *this; }
+  void              construct(pointer p, const T& val)
+                    { new ((T*) p) T(val); }
+  void              destroy(pointer p) { p->~T(); }
+
+  size_type         max_size() const { return size_t(-1); }
+
+  template <class U>
+  struct rebind { typedef pinned_allocator<U> other; };
+
+  template <class U>
+  pinned_allocator(const pinned_allocator<U>&) {}
+
+  template <class U>
+  pinned_allocator& operator=(const pinned_allocator<U>&) { return *this; }
+};
+
+
 //*******************  m_mat_nn.c  (in su3.a) ****************************
 //  void mult_su3_nn( su3_matrix *a,*b,*c )
 //  matrix multiply, no adjoints 
@@ -37,7 +85,7 @@ __global__ void k_mat_nn(
   }
 }
 
-double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, 
+double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_matrix, pinned_allocator<su3_matrix>> &b, std::vector<site, pinned_allocator<site>> &c,
               size_t total_sites, size_t iterations, size_t threadsPerBlock, int use_device)
 {
   int blocksPerGrid;
