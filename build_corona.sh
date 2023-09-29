@@ -25,7 +25,7 @@ cd ..
 echo "Building KOKKOS version"
 mkdir -p build_kokkos
 cd build_kokkos
-CC=amdclang CXX=amdclang++ cmake -DCMAKE_BUILD_TYPE=Release -DMODEL=Kokkos -DTARGET=HIP -DALIGN=On -DCMAKE_CXX_FLAGS="-march=native" ../
+CC=hipcc CXX=hipcc cmake -DCMAKE_BUILD_TYPE=Release -DMODEL=Kokkos -DTARGET=HIP -DALIGN=On -DCMAKE_CXX_FLAGS="-march=native" ../
 make
 cd ..
 

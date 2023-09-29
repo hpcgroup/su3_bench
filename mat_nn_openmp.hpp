@@ -63,7 +63,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     if (iters == warmups)
       tstart = Clock::now();
 #endif
-    #pragma omp target teams distribute num_teams(num_teams) thread_limit(threads_per_team)
+    #pragma omp target teams distribute
     for(int i=0;i<total_sites;++i) {
       #pragma omp parallel for collapse(3)
       for (int j=0; j<4; ++j) {
@@ -101,7 +101,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     if (iters == warmups)
       tstart = Clock::now();
 #endif
-    #pragma omp target teams num_teams(num_teams) thread_limit(threads_per_team)
+    #pragma omp target teams 
     {
       #pragma omp parallel
       {
@@ -156,7 +156,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     if (iters == warmups)
       tstart = Clock::now();
 #endif
-    #pragma omp target teams distribute parallel for num_teams(num_teams)  thread_limit(threads_per_team)
+    #pragma omp target teams distribute parallel for
     for (int id =0; id < num_work_items; id++) {
       int i = id/36;
       if (i < total_sites) {
@@ -210,7 +210,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   #ifdef NOTARGET
     #pragma omp parallel for schedule(static)
   #else
-    #pragma omp target teams distribute parallel for collapse(4) num_teams(num_teams) thread_limit(threads_per_team)
+    #pragma omp target teams distribute parallel for collapse(4)
   #endif
 #elif USE_VERSION == 4
     #pragma omp target teams loop collapse(4)

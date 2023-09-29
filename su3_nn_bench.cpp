@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 {
   size_t iterations = ITERATIONS;
   size_t ldim = LDIM;
-  size_t threads_per_group = 128; // nominally works well across implementations
+  size_t threads_per_group = 256; // nominally works well across implementations
   int device = -1;                // Let implementation choose the device
 
   int opt;
