@@ -43,16 +43,16 @@ else  # intel
 endif
 
 ifeq ($(ALIGNED),yes)
-  CFLAGS += -DALIGNED_WORK
+  DEFINES = -DALIGNED_WORK
 endif
 
 # 32-bit float
 bench_f32_dpcpp.exe: su3_nn_bench.cpp $(DEPENDS)
-	$(CC) $(CFLAGS) $(INCLUDES) -DPRECISION=1 su3_nn_bench.cpp -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFINES) -DPRECISION=1 su3_nn_bench.cpp -o $@ $(LIBS)
 
 # 64-bit float
 bench_f64_dpcpp.exe: su3_nn_bench.cpp $(DEPENDS)
-	$(CC) $(CFLAGS) $(INCLUDES) su3_nn_bench.cpp -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFINES) su3_nn_bench.cpp -o $@ $(LIBS)
 
 all: bench_f32_dpcpp.exe bench_f64_dpcpp.exe 
 

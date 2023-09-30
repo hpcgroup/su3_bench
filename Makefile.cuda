@@ -12,17 +12,17 @@ else
 endif
 
 ifeq ($(ALIGNED),yes)
-  CFLAGS += -DALIGNED_WORK
+  DEFINES = -DALIGNED_WORK
 endif
 
 INCLUDES = -DUSE_CUDA #-DMILC_COMPLEX
 DEPENDS = su3.hpp lattice.hpp mat_nn_cuda.hpp
 
 bench_f32_cuda.exe: su3_nn_bench.cpp $(DEPENDS)
-	$(CC) $(CFLAGS) $(INCLUDES) -DPRECISION=1 -o $@ su3_nn_bench.cpp $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFINES) -DPRECISION=1 -o $@ su3_nn_bench.cpp $(LIBS)
 
 bench_f64_cuda.exe: su3_nn_bench.cpp $(DEPENDS)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ su3_nn_bench.cpp $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFINES) -o $@ su3_nn_bench.cpp $(LIBS)
 
 all: bench_f64_cuda.exe bench_f32_cuda.exe
 
