@@ -28,7 +28,7 @@ ifeq ($(ALIGNED),yes)
 endif
 
 CC = hipcc
-CFLAGS = -O3 $(HIPCC_FLAGS)
+CFLAGS += -O3 $(HIPCC_FLAGS)
 INCLUDES = -DUSE_HIP #-DMILC_COMPLEX
 DEPENDS = su3.hpp lattice.hpp mat_nn_hip.hpp
 
