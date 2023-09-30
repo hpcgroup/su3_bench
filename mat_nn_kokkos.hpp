@@ -83,6 +83,7 @@ double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
 
 #ifndef ALIGNED_WORK
     k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
+	     blocksPerGrid, threadsPerBlock);
 #else
     k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
              blocksPerGrid, threadsPerBlock);
