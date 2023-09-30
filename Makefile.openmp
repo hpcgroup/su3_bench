@@ -53,7 +53,7 @@ else ifeq ($(VENDOR),amd)
 endif
 
 ifeq ($(ALIGNED),yes)
-  CFLAGS += -DALIGNED_WORK
+  DEFINES += -DALIGNED_WORK
 endif
 
 bench_f32_openmp.exe: su3_nn_bench.cpp $(DEPENDS)
