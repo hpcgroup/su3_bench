@@ -1,8 +1,9 @@
-#
+ALIGNED ?= no
+
 # VENDOR = intel | intel-anl | nvidia
 VENDOR = nvidia
 
-CFLAGS = -O3 -ffast-math
+CFLAGS = -O3
 INCLUDES = -DITERATIONS=100
 DEPENDS = mat_nn_dpcpp.hpp su3.hpp lattice.hpp
 ifdef USE_SYCL
@@ -21,6 +22,16 @@ ifeq ($(VENDOR),nvidia)
   else
     CFLAGS += -Xsycl-target-backend '--cuda-gpu-arch=sm_70'
   endif
+else ifeq ($(VENDOR),amd)
+  CC = clang++
+  DEPENDS += mat_nn_sycl.hpp
+  CFLAGS += -fsycl -fsycl-targets=amdgcn-amd-amdhsa
+  # ARCH = MI50 | MI250X
+  ifeq ($(ARCH),MI50)
+    CFLAGS += -Xsycl-target-backend --offload-arch=gfx906
+  else
+    CFLAGS += -Xsycl-target-backend --offload-arch=gfx90a
+  endif
 else  # intel
   CC = dpcpp
   CFLAGS += -fsycl
@@ -31,13 +42,17 @@ else  # intel
   endif
 endif
 
+ifeq ($(ALIGNED),yes)
+  DEFINES = -DALIGNED_WORK
+endif
+
 # 32-bit float
 bench_f32_dpcpp.exe: su3_nn_bench.cpp $(DEPENDS)
-	$(CC) $(CFLAGS) $(INCLUDES) -DPRECISION=1 su3_nn_bench.cpp -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFINES) -DPRECISION=1 su3_nn_bench.cpp -o $@ $(LIBS)
 
 # 64-bit float
 bench_f64_dpcpp.exe: su3_nn_bench.cpp $(DEPENDS)
-	$(CC) $(CFLAGS) $(INCLUDES) su3_nn_bench.cpp -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(DEFINES) su3_nn_bench.cpp -o $@ $(LIBS)
 
 all: bench_f32_dpcpp.exe bench_f64_dpcpp.exe 
 

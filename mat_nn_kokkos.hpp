@@ -10,13 +10,15 @@ using d_site_view = Kokkos::View<site *, ExecSpace>;
 using d_su3_matrix_view = Kokkos::View<su3_matrix *, ExecSpace>;
 using h_site_view = Kokkos::View<site *, HostExecSpace>;
 using h_su3_matrix_view = Kokkos::View<su3_matrix *, HostExecSpace>;
+
+Kokkos::Timer start;
 //
 //*******************  m_mat_nn.c  (in su3.a) ****************************
 //  void mult_su3_nn( su3_matrix *a,*b,*c )
 //  matrix multiply, no adjoints
 //  C  <-  A*B
 
-double k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
+void k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
                 d_site_view c, int total_sites, int blocksPerGrid,
                 int threadsPerBlock) {
     using team_policy =
@@ -25,12 +27,16 @@ double k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
     using member_type = team_policy::member_type;
     team_policy policy(blocksPerGrid, threadsPerBlock);
 
-    Kokkos::Timer start;
+#ifndef ALIGNED_WORK
+    start.reset();
+#endif
     for (size_t iters = 0; iters < iterations + warmups; ++iters) {
+#ifndef ALIGNED_WORK
         if (iters == warmups) {
             Kokkos::fence();
             start.reset();
         }
+#endif
         Kokkos::parallel_for(
             "k_mat_nn", policy, KOKKOS_LAMBDA(const member_type &team) {
                 int myThread =
@@ -50,7 +56,7 @@ double k_mat_nn(size_t iterations, d_site_view a, d_su3_matrix_view b,
         Kokkos::fence();
     }
 
-    return (start.seconds());
+    return;
 }
 
 double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
@@ -66,6 +72,8 @@ double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
         printf("Device number set to %d\n", use_device);
     }
 
+    start.reset();
+
     d_site_view d_a("d_a", total_sites);
     d_site_view d_c("d_c", total_sites);
     d_su3_matrix_view d_b("d_b", 4);
@@ -73,10 +81,21 @@ double su3_mat_nn(h_site_view &a, h_su3_matrix_view &b, h_site_view &c,
     Kokkos::deep_copy(d_a, a);
     Kokkos::deep_copy(d_b, b);
 
-    double ttotal = k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
-                             blocksPerGrid, threadsPerBlock);
+#ifndef ALIGNED_WORK
+    k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
+	     blocksPerGrid, threadsPerBlock);
+#else
+    k_mat_nn(iterations, d_a, d_b, d_c, total_sites,
+             blocksPerGrid, threadsPerBlock);
+#endif
 
+#ifdef ALIGNED_WORK
     Kokkos::deep_copy(c, d_c);
+    double ttotal = start.seconds();
+#else
+    double ttotal = start.seconds();
+    Kokkos::deep_copy(c, d_c);
+#endif
 
     return ttotal;
 }

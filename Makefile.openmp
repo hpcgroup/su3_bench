@@ -1,4 +1,6 @@
-#
+ALIGNED ?= no
+
+
 # Vendor can be nvidia | intel | amd
 ifndef VENDOR
   VENDOR = amd
@@ -48,7 +50,11 @@ else ifeq ($(VENDOR),amd)
     CFLAGS += -march=gfx906
   endif
   DEFINES += -DMILC_COMPLEX
-endif 
+endif
+
+ifeq ($(ALIGNED),yes)
+  DEFINES += -DALIGNED_WORK
+endif
 
 bench_f32_openmp.exe: su3_nn_bench.cpp $(DEPENDS)
 	$(CC) $(CFLAGS) -DPRECISION=1 $(DEFINES) -o $@ su3_nn_bench.cpp $(LIBS)

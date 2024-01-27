@@ -7,6 +7,57 @@
         exit(EXIT_FAILURE); \
   }
 
+
+
+template <class T>
+class pinned_allocator {
+public:
+  typedef size_t    size_type;
+  typedef ptrdiff_t difference_type;
+  typedef T*        pointer;
+  typedef const T*  const_pointer;
+  typedef T&        reference;
+  typedef const T&  const_reference;
+  typedef T         value_type;
+
+  pinned_allocator() {}
+  pinned_allocator(const pinned_allocator&) {}
+
+
+
+  pointer   allocate(size_type n, const void * = 0) {
+              T *t;
+              CUCHECK(hipHostMalloc(&t, n * sizeof(T), 0), "Allocator pinned allocation failed");
+              return t;
+            }
+
+  void      deallocate(void* p, size_type) {
+              if (p) {
+                hipHostFree(p);
+              }
+            }
+
+  pointer           address(reference x) const { return &x; }
+  const_pointer     address(const_reference x) const { return &x; }
+  pinned_allocator<T>&  operator=(const pinned_allocator&) { return *this; }
+  void              construct(pointer p, const T& val)
+                    { new ((T*) p) T(val); }
+  void              destroy(pointer p) { p->~T(); }
+
+  size_type         max_size() const { return size_t(-1); }
+
+  template <class U>
+  struct rebind { typedef pinned_allocator<U> other; };
+
+  template <class U>
+  pinned_allocator(const pinned_allocator<U>&) {}
+
+  template <class U>
+  pinned_allocator& operator=(const pinned_allocator<U>&) { return *this; }
+};
+
+
+
 #define THREADS_PER_SITE 36
 
 //*******************  m_mat_nn.c  (in su3.a) ****************************
@@ -40,7 +91,7 @@ __global__ void k_mat_nn(
   }
 }
 
-double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, 
+double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_matrix, pinned_allocator<su3_matrix>> &b, std::vector<site, pinned_allocator<site>> &c, 
               size_t total_sites, size_t iterations, size_t threadsPerBlock, int use_device)
 {
   int blocksPerGrid;
@@ -78,6 +129,10 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     printf("Using device %d: %s\n", use_device, device_prop.name);
   }
 
+#ifdef ALIGNED_WORK
+  auto tstart = Clock::now();
+#endif
+
   // Declare target storage and copy A and B
   hipError_t cuErr;
   site *d_a, *d_c;
@@ -100,20 +155,31 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   // benchmark loop
+#ifndef ALIGNED_WORK
   auto tstart = Clock::now();
+#endif
   for (int iters=0; iters<iterations+warmups; ++iters) {
+
+#ifndef ALIGNED_WORK
     if (iters == warmups) {
       hipDeviceSynchronize();
       tstart = Clock::now();
 	  }
+#endif
     hipLaunchKernelGGL(k_mat_nn, dim3(blocksPerGrid), dim3(threadsPerBlock), 0, 0, d_a, d_b, d_c, total_sites);
   }
   hipDeviceSynchronize();
+#ifndef ALIGNED_WORK
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
   CUCHECK(hipGetLastError(), "k_mat_nn kernel Failed");
 
   // copy data back from device
   hipMemcpy(c.data(), d_c, size_c, hipMemcpyDeviceToHost);
+
+#ifdef ALIGNED_WORK
+  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // Deallocate
   hipFree(d_a);

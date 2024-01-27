@@ -15,6 +15,11 @@ typedef std::chrono::system_clock Clock;
   #include <omp.h>
 #endif
 
+#ifdef USE_RAJA
+#include "umpire/ResourceManager.hpp"
+#include "umpire/strategy/QuickPool.hpp"
+#endif
+
 #ifndef ITERATIONS
 #  define ITERATIONS 100
 #endif
@@ -103,6 +108,7 @@ void make_lattice(site *s, size_t n, Complx val) {
   int ny=n;
   int nz=n;
   int nt=n;
+  printf("%p \n", s);
 
   #pragma omp parallel for
   for(int t=0;t<nt;t++) {
@@ -140,6 +146,8 @@ void make_lattice(site *s, size_t n, Complx val) {
   #include "mat_nn_hip.hpp"
 #elif USE_KOKKOS
   #include "mat_nn_kokkos.hpp"
+#elif USE_RAJA
+  #include "mat_nn_raja.hpp"
 #else
   #error Unknown programming model
 #endif
@@ -149,7 +157,7 @@ int main(int argc, char **argv)
 {
   size_t iterations = ITERATIONS;
   size_t ldim = LDIM;
-  size_t threads_per_group = 128; // nominally works well across implementations
+  size_t threads_per_group = 256; // nominally works well across implementations
   int device = -1;                // Let implementation choose the device
 
   int opt;
@@ -195,6 +203,26 @@ int main(int argc, char **argv)
   h_site_view a("a", total_sites);
   h_site_view c("c", total_sites);
   h_su3_matrix_view b("b", 4);
+#elif USE_RAJA
+  auto& rm = umpire::ResourceManager::getInstance();
+  auto cpu_pool = rm.makeAllocator<umpire::strategy::QuickPool>("cpu_pool", rm.getAllocator("PINNED"));
+  auto gpu_pool = rm.makeAllocator<umpire::strategy::QuickPool>("gpu_pool", rm.getAllocator("DEVICE"));
+  auto ra = chai::ArrayManager::getInstance();
+  ra->setDefaultAllocationSpace(chai::CPU);
+  chai::ManagedArray<site> a(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
+  a.allocate(total_sites);
+  chai::ManagedArray<su3_matrix> b(4, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
+  b.allocate(4);
+  chai::ManagedArray<site> c(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
+  c.allocate(total_sites);
+#elif USE_HIP
+  std::vector<site, pinned_allocator<site>> a(total_sites);
+  std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
+  std::vector<site, pinned_allocator<site>> c(total_sites);
+#elif USE_CUDA
+  std::vector<site, pinned_allocator<site>> a(total_sites);
+  std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
+  std::vector<site, pinned_allocator<site>> c(total_sites);
 #else
   std::vector<site> a(total_sites);
   std::vector<su3_matrix> b(4);
@@ -232,7 +260,7 @@ int main(int argc, char **argv)
     Complx cc = {0.0, 0.0};
     for(int m=0;m<3;m++) {
       #ifdef MILC_COMPLEX
-        CMULSUM( a[i].link[j].e[k][m], b[j].e[m][l], cc)
+        CMULSUM( a[i].link[j].e[k][m], b[j].e[m][l], cc);
       #elif USE_KOKKOS
         cc += a(i).link[j].e[k][m] * b[j].e[m][l];
       #else
@@ -249,6 +277,12 @@ int main(int argc, char **argv)
       assert(almost_equal(c[i].link[j].e[k][l], cc, 1E-6));
     #endif
   }
+
+#ifdef USE_RAJA
+  a.free();
+  b.free();
+  c.free();
+#endif
 
   // check memory usage
   if (verbose >= 2) {

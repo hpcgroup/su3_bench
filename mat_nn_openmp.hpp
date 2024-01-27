@@ -8,7 +8,7 @@
   #define USE_VERSION 2
 #endif
 
-double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, 
+double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c,
               size_t total_sites, size_t iterations, size_t threads_per_team, int use_device)
 {
   size_t num_teams = NUM_TEAMS;
@@ -33,9 +33,13 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   d_a = a.data(); len_a = a.size();
   d_b = b.data(); len_b = b.size();
   d_c = c.data(); len_c = c.size();
- 
+
   // Move A and B data to the device, Allocate C data
   double ttotal;
+
+#ifdef ALIGNED_WORK
+    auto tstart = Clock::now();
+#endif
   #pragma omp target data map(to: d_a[0:len_a], d_b[0:len_b]) map(from: d_c[0:len_c])
   {  // begin OpenMP block
 
@@ -43,7 +47,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   auto tstart = Clock::now();
 #if USE_VERSION == 0
   // Baseline implementation
-	// Original intent is to have teams process whole sites, 
+	// Original intent is to have teams process whole sites,
 	//   hence sites are distributed across the teams
 	// However, for the Clang 10.0 OpenMP compiler this has issues in that memory gets
 	//   flushed after each parallel region causing excessive global memory traffic
@@ -54,9 +58,12 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
-    #pragma omp target teams distribute num_teams(num_teams) thread_limit(threads_per_team)
+#endif
+    #pragma omp target teams distribute
     for(int i=0;i<total_sites;++i) {
       #pragma omp parallel for collapse(3)
       for (int j=0; j<4; ++j) {
@@ -90,9 +97,11 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
-    #pragma omp target teams num_teams(num_teams) thread_limit(threads_per_team)
+#endif
+    #pragma omp target teams 
     {
       #pragma omp parallel
       {
@@ -143,9 +152,11 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
-    #pragma omp target teams distribute parallel for num_teams(num_teams)  thread_limit(threads_per_team)
+#endif
+    #pragma omp target teams distribute parallel for
     for (int id =0; id < num_work_items; id++) {
       int i = id/36;
       if (i < total_sites) {
@@ -191,13 +202,15 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
+#ifndef ALIGNED_WORK
     if (iters == warmups)
       tstart = Clock::now();
+#endif
 #if USE_VERSION == 3
   #ifdef NOTARGET
     #pragma omp parallel for schedule(static)
   #else
-    #pragma omp target teams distribute parallel for collapse(4) num_teams(num_teams) thread_limit(threads_per_team)
+    #pragma omp target teams distribute parallel for collapse(4)
   #endif
 #elif USE_VERSION == 4
     #pragma omp target teams loop collapse(4)
@@ -233,8 +246,14 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
 #endif
 
+#ifndef ALIGNED_WORK
   ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
   } // end of OpenMP block, C gets moved back to the host
+
+#ifdef ALIGNED_WORK
+  ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+#endif
 
   // It is not possible to check for NaNs when the application is compiled with -ffast-math
   // Therefore we print out the calculated checksum as a manual check for the user.

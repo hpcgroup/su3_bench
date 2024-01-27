@@ -63,60 +63,62 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
   }
   std::cout << std::flush;
 
-  // wrap arrays in SYCL buffers, suppling global memory pointer implicitly copies the data to the device when needed
-  buffer<site, 1>       a_buf {a.data(), range<1> {total_sites}};
-  buffer<su3_matrix, 1> b_buf {b.data(), range<1> {4}};
-  buffer<site, 1>       c_buf {range<1> {total_sites}};
-  // The copy of c from device -> host will occur when the destructor is called (at the end of the scope)
-	c_buf.set_final_data(c.data());
-
-  // benchmark loop
   auto tstart = Clock::now();
-  for (int iters=0; iters<iterations+warmups; ++iters) {
-    if (iters == warmups) {
-      queue.wait(); 
-      tstart = Clock::now();
-	  }
+  {
+  // wrap arrays in SYCL buffers, suppling global memory pointer implicitly copies the data to the device when needed
+    buffer<site, 1>       a_buf {a.data(), range<1> {total_sites}};
+    buffer<su3_matrix, 1> b_buf {b.data(), range<1> {4}};
+    buffer<site, 1>       c_buf {range<1> {total_sites}};
+    // The copy of c from device -> host will occur when the destructor is called (at the end of the scope)
+    c_buf.set_final_data(c.data());
 
-    // create a command_group to issue commands
-    queue.submit([&](handler& cgh) {
-      // request access to the host buffers
-      auto d_a = a_buf.get_access<access::mode::read>(cgh);
-      auto d_b = b_buf.get_access<access::mode::read>(cgh);
-      auto d_c = c_buf.get_access<access::mode::write>(cgh);
+    // benchmark loop
+    for (int iters=0; iters<iterations+warmups; ++iters) {
+      if (iters == warmups) {
+        queue.wait(); 
+        tstart = Clock::now();
+      }
 
-      // Lambda function defines the kernel scope
-      cgh.parallel_for<class k_mat_nn>(
-      nd_range<1> {total_wi, wgsize}, [=](nd_item<1> item) {
-        size_t myThread = item.get_global_id(0);
-        size_t mySite = myThread/36;
-        if (mySite < total_sites) {
-          int j = (myThread%36)/9;
-          int k = (myThread%9)/3;
-          int l = myThread%3;
-          Complx cc = {0.0, 0.0};
-          for (int m=0;m<3;m++) {
-#ifndef USE_WORKAROUND
-            // This is the nominal code
-            const auto aa = d_a[mySite].link[j].e[k][m];
-            const auto bb = d_b[j].e[m][l];
-#else
-            // This code derefrences both d_a and d_b to Complx pointers
-            const auto aa = (d_a.get_pointer() + mySite)->link[j].e[k][m];
-            const auto bb = (d_b.get_pointer() + j)->e[m][l];
-#endif
-#ifndef MILC_COMPLEX
-            cc += aa * bb;
-#else
-            CMULSUM(aa, bb, cc);
-#endif
+      // create a command_group to issue commands
+      queue.submit([&](handler& cgh) {
+        // request access to the host buffers
+        auto d_a = a_buf.get_access<access::mode::read>(cgh);
+        auto d_b = b_buf.get_access<access::mode::read>(cgh);
+        auto d_c = c_buf.get_access<access::mode::write>(cgh);
+
+        // Lambda function defines the kernel scope
+        cgh.parallel_for<class k_mat_nn>(
+        nd_range<1> {total_wi, wgsize}, [=](nd_item<1> item) {
+          size_t myThread = item.get_global_id(0);
+          size_t mySite = myThread/36;
+          if (mySite < total_sites) {
+            int j = (myThread%36)/9;
+            int k = (myThread%9)/3;
+            int l = myThread%3;
+            Complx cc = {0.0, 0.0};
+            for (int m=0;m<3;m++) {
+  #ifndef USE_WORKAROUND
+              // This is the nominal code
+              const auto aa = d_a[mySite].link[j].e[k][m];
+              const auto bb = d_b[j].e[m][l];
+  #else
+              // This code derefrences both d_a and d_b to Complx pointers
+              const auto aa = (d_a.get_pointer() + mySite)->link[j].e[k][m];
+              const auto bb = (d_b.get_pointer() + j)->e[m][l];
+  #endif
+  #ifndef MILC_COMPLEX
+              cc += aa * bb;
+  #else
+              CMULSUM(aa, bb, cc);
+  #endif
+            }
+            d_c[mySite].link[j].e[k][l] = cc;
           }
-          d_c[mySite].link[j].e[k][l] = cc;
-        }
-      }); // end of the kernel lambda function
-    });   // end of command group
-  queue.wait();
-  } // end of iteration loop
+        }); // end of the kernel lambda function
+      });   // end of command group
+    queue.wait();
+    } // end of iteration loop
+  }
 
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
 
