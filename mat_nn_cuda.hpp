@@ -56,6 +56,11 @@ public:
   pinned_allocator& operator=(const pinned_allocator<U>&) { return *this; }
 };
 
+typedef struct{
+	double d2h_time;
+	double kernel_time;
+	double h2d_time;
+} Profile;
 
 //*******************  m_mat_nn.c  (in su3.a) ****************************
 //  void mult_su3_nn( su3_matrix *a,*b,*c )
@@ -86,7 +91,7 @@ __global__ void k_mat_nn(
 }
 
 double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_matrix, pinned_allocator<su3_matrix>> &b, std::vector<site, pinned_allocator<site>> &c,
-              size_t total_sites, size_t iterations, size_t threadsPerBlock, int use_device)
+		  size_t total_sites, size_t iterations, size_t threadsPerBlock, int use_device, Profile *profile)
 {
   int blocksPerGrid;
   int size_a = sizeof(site) * total_sites;
@@ -123,9 +128,8 @@ double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_
     printf("Using device %d: %s\n", use_device, device_prop.name);
   }
 
-#ifdef ALIGNED_WORK
-    auto tstart = Clock::now();
-#endif
+  auto tstart = Clock::now();
+  auto tprofiling = tstart;
 
   // Declare target storage and copy A and B
   cudaError_t cuErr;
@@ -140,6 +144,8 @@ double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_
   cudaMemcpy(d_a, a.data(), size_a, cudaMemcpyHostToDevice);
   cudaMemcpy(d_b, b.data(), size_b, cudaMemcpyHostToDevice);
 
+  profile->h2d_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+
   double sitesPerBlock = (double)threadsPerBlock / THREADS_PER_SITE;
   blocksPerGrid = total_sites/sitesPerBlock + 0.999999;
 
@@ -149,32 +155,29 @@ double su3_mat_nn(std::vector<site, pinned_allocator<site>> &a, std::vector<su3_
   }
 
   // benchmark loop
-#ifndef ALIGNED_WORK
-  auto tstart = Clock::now();
-#endif
+  tprofiling = Clock::now();
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
-#ifndef ALIGNED_WORK
     if (iters == warmups) {
       cudaDeviceSynchronize();
       tstart = Clock::now();
-	}
-#endif
+      tprofiling = Clock::now();
+	  }
     k_mat_nn<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, total_sites);
   }
   cudaDeviceSynchronize();
 
-#ifndef ALIGNED_WORK
-  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
-#endif
   CUCHECK(cudaGetLastError(), "k_mat_nn kernel Failed");
 
+  profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+
   // copy data back from device
+  tprofiling = Clock::now();
+
   cudaMemcpy(c.data(), d_c, size_c, cudaMemcpyDeviceToHost);
 
-#ifdef ALIGNED_WORK
+  profile->d2h_time= (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
-#endif
 
   // Deallocate
   cudaFree(d_a);

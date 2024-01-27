@@ -4,11 +4,17 @@
 
 #define THREADS_PER_SITE 36
 
+typedef struct{
+	double d2h_time;
+	double kernel_time;
+	double h2d_time;
+} Profile;
+
 // Sycl requires that kernels be named
 class k_mat_nn;
 
 double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, std::vector<site> &c, 
-              const size_t total_sites, const size_t iterations, size_t wgsize, const int target)
+		  const size_t total_sites, const size_t iterations, size_t wgsize, const int target, Profile* profile)
 { 
   using namespace cl::sycl;
 
@@ -64,6 +70,7 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
   std::cout << std::flush;
 
   auto tstart = Clock::now();
+  auto tprofiling = tstart;
   {
   // wrap arrays in SYCL buffers, suppling global memory pointer implicitly copies the data to the device when needed
     buffer<site, 1>       a_buf {a.data(), range<1> {total_sites}};
@@ -72,11 +79,15 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
     // The copy of c from device -> host will occur when the destructor is called (at the end of the scope)
     c_buf.set_final_data(c.data());
 
+    profile->h2d_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+    tprofiling = Clock::now();
+
     // benchmark loop
     for (int iters=0; iters<iterations+warmups; ++iters) {
       if (iters == warmups) {
         queue.wait(); 
         tstart = Clock::now();
+        tprofiling = Clock::now();
       }
 
       // create a command_group to issue commands
@@ -118,9 +129,12 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
       });   // end of command group
     queue.wait();
     } // end of iteration loop
+    profile->kernel_time = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count()/1.0e6;
+    tprofiling = Clock::now();
   }
 
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+  profile->d2h = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count()/1.0e6;
 
   return (ttotal /= 1.0e6);
 } // end of SYCL block
