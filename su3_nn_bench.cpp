@@ -207,7 +207,7 @@ int main(int argc, char **argv)
 #elif USE_RAJA
   auto& rm = umpire::ResourceManager::getInstance();
   auto cpu_pool = rm.makeAllocator<umpire::strategy::QuickPool>("cpu_pool", rm.getAllocator("PINNED"));
-  auto gpu_pool = rm.makeAllocator<umpire::strategy::QuickPool>("gpu_pool", rm.getAllocator("DEVICE"));
+  /*
   auto ra = chai::ArrayManager::getInstance();
   ra->setDefaultAllocationSpace(chai::CPU);
   chai::ManagedArray<site> a(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
@@ -216,6 +216,11 @@ int main(int argc, char **argv)
   b.allocate(4);
   chai::ManagedArray<site> c(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
   c.allocate(total_sites);
+  */
+  auto a = static_cast<site*>(cpu_pool.allocate(total_sites * sizeof(site)));
+  auto b = static_cast<su3_matrix*>(cpu_pool.allocate(4 * sizeof(su3_matrix)));
+  auto c = static_cast<site*>(cpu_pool.allocate(total_sites * sizeof(site)));
+
 #elif USE_HIP
   std::vector<site, pinned_allocator<site>> a(total_sites);
   std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
@@ -235,8 +240,13 @@ int main(int argc, char **argv)
 #endif
 
   // initialize the lattices
+#ifdef USE_RAJA
+  make_lattice(a, ldim, Complx{1.0,0.0});
+  init_link(b, Complx{1.0/3.0,0.0});
+#else
   make_lattice(a.data(), ldim, Complx{1.0,0.0});
   init_link(b.data(), Complx{1.0/3.0,0.0});
+#endif
 
   if (verbose >= 1) {
     printf("Number of sites = %zu^4\n", ldim);
@@ -257,7 +267,11 @@ int main(int argc, char **argv)
   const double tflop = (double)total_sites * 864.0;
   printf("Total GFLOP/s = %.3f\n", iterations * tflop / ttotal / 1.0e9);
 
+#ifdef USE_RAJA
+  const double memory_usage = (double)sizeof(site) * (total_sites * 2) + sizeof(su3_matrix) * 4;
+#else
   const double memory_usage = (double)sizeof(site) * (a.size() + c.size()) + sizeof(su3_matrix) * b.size();
+#endif
   printf("Total GByte/s (GPU memory)  = %.3f\n", iterations * memory_usage / ttotal / 1.0e9);
   fflush(stdout);
 
@@ -285,9 +299,12 @@ int main(int argc, char **argv)
   }
 
 #ifdef USE_RAJA
-  a.free();
-  b.free();
-  c.free();
+  //a.free();
+  //b.free();
+  //c.free();
+  cpu_pool.deallocate(a);
+  cpu_pool.deallocate(b);
+  cpu_pool.deallocate(c);
 #endif
 
   // check memory usage

@@ -1,6 +1,11 @@
 #include "RAJA/RAJA.hpp"
 #include "RAJA/util/Timer.hpp"
-#include <chai/ManagedArray.hpp>
+
+typedef struct{
+	double d2h_time;
+	double kernel_time;
+	double h2d_time;
+} Profile;
 
 #if defined(RAJA_ENABLE_OPENMP)
 using policy = RAJA::omp_parallel_for_exec;
@@ -20,16 +25,32 @@ using policy = RAJA::omp_parallel_for_exec;
 #endif
 
 
-double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b, chai::ManagedArray<site> &c,
-    size_t total_sites, size_t iterations, size_t threads_per_workgroup, int device) {
+double su3_mat_nn(site* a, su3_matrix* b, site* c,
+		  size_t total_sites, size_t iterations, size_t threads_per_workgroup, int device, Profile* profile) {
 
   constexpr int threads_per_side = 4 * 3 * 3;
   constexpr int threads_per_block = 256;
   constexpr int sides_per_block = threads_per_block / threads_per_side;
   const int teams = (total_sites + sides_per_block -1) / sides_per_block;
   auto timer = RAJA::Timer();
-  for (size_t iters = 0; iters < iterations + warmups; ++iters) {
 
+  auto& rm = umpire::ResourceManager::getInstance();
+  auto gpu_pool = rm.makeAllocator<umpire::strategy::QuickPool>("gpu_pool", rm.getAllocator("DEVICE"));
+
+  site* d_a = static_cast<site*>(gpu_pool.allocate(total_sites * sizeof(site)));
+  su3_matrix* d_b = static_cast<su3_matrix*>(gpu_pool.allocate(4 * sizeof(su3_matrix)));
+  site* d_c = static_cast<site*>(gpu_pool.allocate(total_sites * sizeof(site)));
+
+  //time d2h
+  rm.copy(d_a, a);
+  rm.copy(d_b, b);
+  rm.copy(d_c, c);
+
+  for (size_t iters = 0; iters < iterations + warmups; ++iters) {
+    if (iters == warmups) {
+      //restart timer
+    }
+  
 #ifndef __RAJA_KERNEL__
   RAJA::launch<launch_policy>(RAJA::ExecPlace::DEVICE,
       RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(sides_per_block*4,3,3)),
@@ -79,7 +100,10 @@ double su3_mat_nn(chai::ManagedArray<site>& a, chai::ManagedArray<su3_matrix>& b
       });
 #endif
   }
-  c.move(chai::CPU);
+  //end of kernel
+
+  //time h2d
+  rm.copy(c, d_c);
   timer.stop();
   RAJA::Timer::ElapsedType elapsed = timer.elapsed();
 
