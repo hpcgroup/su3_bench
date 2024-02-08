@@ -6,8 +6,14 @@
 // Sycl requires that kernels be named
 class k_mat_nn;
 
+typedef struct{
+	double d2h_time;
+	double kernel_time;
+	double h2d_time;
+} Profile;
+
 double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, std::vector<site> &c, 
-              const size_t total_sites, const size_t iterations, size_t wgsize, const int target)
+		  const size_t total_sites, const size_t iterations, size_t wgsize, const int target, Profile* profile)
 { 
   using namespace cl::sycl;
 
@@ -61,9 +67,8 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
 
   std::cout << std::flush;
 
-#ifdef ALIGNED_WORK
-    auto tstart = Clock::now();
-#endif
+  auto tstart = Clock::now();
+  auto tprofiling = tstart;
 
   // allocate device memory
   site*       d_a = (site*)       malloc_device(total_sites * sizeof(site), queue);
@@ -79,14 +84,15 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
   queue.memcpy(d_b, b.data(), b.size() * sizeof(su3_matrix));
   queue.wait();
 
+  profile->h2d_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+  tprofiling = Clock::now();
+
   // benchmark loop
-#ifndef ALIGNED_WORK
-  auto tstart = Clock::now();
-#endif
   for (int iters=0; iters<iterations+warmups; ++iters) {
     if (iters == warmups) {
       queue.wait();
       tstart = Clock::now();
+      auto tprofiling = tstart;
 	  }
 
     // create a command_group to issue commands
@@ -117,17 +123,16 @@ double su3_mat_nn(const std::vector<site> &a, const std::vector<su3_matrix> &b, 
   queue.wait();
   } // end of iteration loop
 
-#ifndef ALIGNED_WORK
-  double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
-#endif
+  profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+  tprofiling = Clock::now();
 
   // Move the result back to the host side vector
   queue.memcpy(c.data(), d_c, c.size() * sizeof(site));
   queue.wait();
 
-#ifdef ALIGNED_WORK
+  profile->d2h_time= (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
-#endif
 
   free(d_a, queue);
   free(d_b, queue);
