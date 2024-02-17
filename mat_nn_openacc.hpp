@@ -35,19 +35,19 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
     #pragma acc parallel loop gang present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
     for(int i=0;i<total_sites;++i) {
-      #pragma acc loop worker vector collapse(3)
+      #pragma acc loop worker vector collapse(3) present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
       for (int j=0; j<4; ++j) {
         for(int k=0;k<3;k++) {
           for(int l=0;l<3;l++){
 	    Complx cc = {0.0, 0.0};
 #ifndef MILC_COMPLEX
-            #pragma acc loop seq
+            #pragma acc loop seq present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
             for(int m=0;m<3;m++) {
                cc += d_a[i].link[j].e[k][m] * d_b[j].e[m][l];
             }
             d_c[i].link[j].e[k][l] = cc;
 #else
-            #pragma acc loop seq
+            #pragma acc loop seq present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
             for(int m=0;m<3;m++) {
                CMULSUM(d_a[i].link[j].e[k][m], d_b[j].e[m][l], cc);
             }
