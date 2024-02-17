@@ -66,10 +66,6 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
 
-#ifndef ALIGNED_WORK
-    if (iters == warmups)
-      tstart = Clock::now();
-#endif
     #pragma omp target teams distribute
     for(int i=0;i<total_sites;++i) {
       #pragma omp parallel for collapse(3)
@@ -104,10 +100,6 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
-#ifndef ALIGNED_WORK
-    if (iters == warmups)
-      tstart = Clock::now();
-#endif
     #pragma omp target teams 
     {
       #pragma omp parallel
@@ -213,10 +205,6 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   }
 
   for (int iters=0; iters<iterations+warmups; ++iters) {
-#ifndef ALIGNED_WORK
-    if (iters == warmups)
-      tstart = Clock::now();
-#endif
 #if USE_VERSION == 3
   #ifdef NOTARGET
     #pragma omp parallel for schedule(static)
