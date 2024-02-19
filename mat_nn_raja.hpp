@@ -18,10 +18,18 @@
   using threads_z = RAJA::LoopPolicy<RAJA::hip_thread_z_direct>;
 #endif
 
-double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, size_t total_sites, size_t iterations, size_t threadsPerBlock, int device) {
+typedef struct{
+	double d2h_time;
+	double kernel_time;
+	double h2d_time;
+} Profile;
+
+double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, size_t total_sites, size_t iterations, size_t threadsPerBlock, int device, Profile* profile) {
   size_t size_a = sizeof(site) * total_sites;
   size_t size_b = sizeof(su3_matrix) * 4;
   size_t size_c = sizeof(site) * total_sites;
+
+  auto tprofiling = Clock::now();
 
   auto &rm = umpire::ResourceManager::getInstance();
   auto host_alloc = rm.getAllocator("HOST");
@@ -47,15 +55,20 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   rm.copy(d_b, b.data());
   rm.copy(d_c, c.data());
 
+  profile->h2d_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+
   constexpr int threads_per_side = 4 * 3 * 3;
   constexpr int threads_per_block = 256;
   constexpr int sides_per_block = threads_per_block / threads_per_side;
   const int teams = (total_sites + sides_per_block - 1) / sides_per_block;
 
   auto tstart = Clock::now();
+  tprofiling = tstart;
+  
   for (size_t iters = 0; iters < iterations + warmups; ++iters) {
     if (iters == warmups) {
       tstart = Clock::now();
+      tprofiling = tstart;
     }
     RAJA::launch<launch_policy>(RAJA::ExecPlace::DEVICE,
       RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(sides_per_block*4,3,3)),
@@ -81,8 +94,13 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
       });
   }
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
+  profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
+
+  tprofiling = Clock::now();
 
   rm.copy(c.data(), d_c);
+
+  profile->d2h_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
 
   return (ttotal /= 1.0e6);
 }

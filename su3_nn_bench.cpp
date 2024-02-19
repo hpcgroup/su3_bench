@@ -149,6 +149,7 @@ void make_lattice(site *s, size_t n, Complx val) {
 // Main
 int main(int argc, char **argv)
 {
+  Profile profile;
   size_t iterations = ITERATIONS;
   size_t ldim = LDIM;
   size_t threads_per_group = 128; // nominally works well across implementations
@@ -217,9 +218,13 @@ int main(int argc, char **argv)
   }
 
   // benchmark call
-  const double ttotal = su3_mat_nn(a, b, c, total_sites, iterations, threads_per_group, device);
-  if (verbose >= 1)
-    printf("Total execution time = %f secs\n", ttotal);
+  const double ttotal = su3_mat_nn(a, b, c, total_sites, iterations, threads_per_group, device, &profile);
+  if (verbose >= 1) {
+    printf("h2d: %fs, kernel: %fs, d2h: %fs\n",
+	       profile.h2d_time,
+	       profile.kernel_time,
+	       profile.d2h_time);
+  }
   // calculate flops/s, etc.
   // each matrix multiply is (3*3)*4*(12 mult + 12 add) = 4*(108 mult + 108 add) = 4*216 ops
   const double tflop = (double)total_sites * 864.0;
