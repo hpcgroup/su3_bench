@@ -15,11 +15,6 @@ typedef std::chrono::system_clock Clock;
   #include <omp.h>
 #endif
 
-#ifdef USE_RAJA
-#include "umpire/ResourceManager.hpp"
-#include "umpire/strategy/QuickPool.hpp"
-#endif
-
 #ifndef ITERATIONS
 #  define ITERATIONS 100
 #endif
@@ -108,7 +103,6 @@ void make_lattice(site *s, size_t n, Complx val) {
   int ny=n;
   int nz=n;
   int nt=n;
-  printf("%p \n", s);
 
   #pragma omp parallel for
   for(int t=0;t<nt;t++) {
@@ -155,12 +149,11 @@ void make_lattice(site *s, size_t n, Complx val) {
 // Main
 int main(int argc, char **argv)
 {
-  Profile profile;
   size_t iterations = ITERATIONS;
   size_t ldim = LDIM;
-  size_t threads_per_group = 256; // nominally works well across implementations
+  size_t threads_per_group = 128; // nominally works well across implementations
   int device = -1;                // Let implementation choose the device
-  
+
   int opt;
   g_argc = argc;
   g_argv = argv;
@@ -204,31 +197,6 @@ int main(int argc, char **argv)
   h_site_view a("a", total_sites);
   h_site_view c("c", total_sites);
   h_su3_matrix_view b("b", 4);
-#elif USE_RAJA
-  auto& rm = umpire::ResourceManager::getInstance();
-  auto cpu_pool = rm.makeAllocator<umpire::strategy::QuickPool>("cpu_pool", rm.getAllocator("PINNED"));
-  /*
-  auto ra = chai::ArrayManager::getInstance();
-  ra->setDefaultAllocationSpace(chai::CPU);
-  chai::ManagedArray<site> a(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
-  a.allocate(total_sites);
-  chai::ManagedArray<su3_matrix> b(4, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
-  b.allocate(4);
-  chai::ManagedArray<site> c(total_sites, std::initializer_list<chai::ExecutionSpace>{chai::CPU , chai::GPU }, std::initializer_list<umpire::Allocator>{cpu_pool , gpu_pool});
-  c.allocate(total_sites);
-  */
-  auto a = static_cast<site*>(cpu_pool.allocate(total_sites * sizeof(site)));
-  auto b = static_cast<su3_matrix*>(cpu_pool.allocate(4 * sizeof(su3_matrix)));
-  auto c = static_cast<site*>(cpu_pool.allocate(total_sites * sizeof(site)));
-
-#elif USE_HIP
-  std::vector<site, pinned_allocator<site>> a(total_sites);
-  std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
-  std::vector<site, pinned_allocator<site>> c(total_sites);
-#elif USE_CUDA
-  std::vector<site, pinned_allocator<site>> a(total_sites);
-  std::vector<su3_matrix, pinned_allocator<su3_matrix>> b(4);
-  std::vector<site, pinned_allocator<site>> c(total_sites);
 #else
   std::vector<site> a(total_sites);
   std::vector<su3_matrix> b(4);
@@ -240,13 +208,8 @@ int main(int argc, char **argv)
 #endif
 
   // initialize the lattices
-#ifdef USE_RAJA
-  make_lattice(a, ldim, Complx{1.0,0.0});
-  init_link(b, Complx{1.0/3.0,0.0});
-#else
   make_lattice(a.data(), ldim, Complx{1.0,0.0});
   init_link(b.data(), Complx{1.0/3.0,0.0});
-#endif
 
   if (verbose >= 1) {
     printf("Number of sites = %zu^4\n", ldim);
@@ -254,24 +217,15 @@ int main(int argc, char **argv)
   }
 
   // benchmark call
-  const double ttotal = su3_mat_nn(a, b, c, total_sites, iterations, threads_per_group, device, &profile);
-  if (verbose >= 1) {
-    //printf("Total execution time = %f secs\n", ttotal);
-    printf("h2d: %fs, kernel: %fs, d2h: %fs\n",
-	       profile.h2d_time,
-	       profile.kernel_time,
-	       profile.d2h_time);
-  }
+  const double ttotal = su3_mat_nn(a, b, c, total_sites, iterations, threads_per_group, device);
+  if (verbose >= 1)
+    printf("Total execution time = %f secs\n", ttotal);
   // calculate flops/s, etc.
   // each matrix multiply is (3*3)*4*(12 mult + 12 add) = 4*(108 mult + 108 add) = 4*216 ops
   const double tflop = (double)total_sites * 864.0;
   printf("Total GFLOP/s = %.3f\n", iterations * tflop / ttotal / 1.0e9);
 
-#ifdef USE_RAJA
-  const double memory_usage = (double)sizeof(site) * (total_sites * 2) + sizeof(su3_matrix) * 4;
-#else
   const double memory_usage = (double)sizeof(site) * (a.size() + c.size()) + sizeof(su3_matrix) * b.size();
-#endif
   printf("Total GByte/s (GPU memory)  = %.3f\n", iterations * memory_usage / ttotal / 1.0e9);
   fflush(stdout);
 
@@ -280,7 +234,7 @@ int main(int argc, char **argv)
     Complx cc = {0.0, 0.0};
     for(int m=0;m<3;m++) {
       #ifdef MILC_COMPLEX
-        CMULSUM( a[i].link[j].e[k][m], b[j].e[m][l], cc);
+        CMULSUM( a[i].link[j].e[k][m], b[j].e[m][l], cc)
       #elif USE_KOKKOS
         cc += a(i).link[j].e[k][m] * b[j].e[m][l];
       #else
@@ -298,15 +252,6 @@ int main(int argc, char **argv)
     #endif
   }
 
-#ifdef USE_RAJA
-  //a.free();
-  //b.free();
-  //c.free();
-  cpu_pool.deallocate(a);
-  cpu_pool.deallocate(b);
-  cpu_pool.deallocate(c);
-#endif
-
   // check memory usage
   if (verbose >= 2) {
     printf("Total allocation for matrices = %.3f MiB\n", memory_usage / 1048576.0);
@@ -315,4 +260,3 @@ int main(int argc, char **argv)
       printf("Approximate memory usage = %.3f MiB\n", (float)usage.ru_maxrss/1024.0);
   }
 }
-

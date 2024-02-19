@@ -5,7 +5,7 @@
 #if defined(USE_OPENCL) || defined(MILC_COMPLEX)
   #include "su3.h"
 #else
-#if defined(USE_CUDA) || defined(USE_HIP) && !defined(MILC_COMPLEX)
+#if defined(USE_CUDA) || defined(USE_HIP) && defined(USE_RAJA) || !defined(MILC_COMPLEX)
   #define USE_THRUST
 #endif
 #if defined(USE_RAJA)
