@@ -155,6 +155,8 @@ int main(int argc, char **argv)
   size_t threads_per_group = 128; // nominally works well across implementations
   int device = -1;                // Let implementation choose the device
 
+  std::string csv_filename = "";
+
   int opt;
   g_argc = argc;
   g_argv = argv;
@@ -163,7 +165,7 @@ int main(int argc, char **argv)
   //   su3_mat_nn() implementations internally,
   //   as getopt rearrages the order of arguments and
   //   can screw things up for unknown options
-  while ((opt=getopt(argc, argv, ":hi:l:t:v:d:w:n:")) != -1) {
+  while ((opt=getopt(argc, argv, ":hi:l:t:v:d:w:n:c:")) != -1) {
     switch (opt) {
     case 'i':
       iterations = atoi(optarg);
@@ -183,9 +185,12 @@ int main(int argc, char **argv)
     case 'w':
       warmups = atoi(optarg);
       break;
+    case 'c':
+      csv_filename = optarg;
+      break;
     case 'h':
       fprintf(stderr, "Usage: %s [-i iterations] [-l lattice dimension] \
-[-t threads per workgroup] [-d device] [-v verbosity level [0,1,2,3]] [-w warmups]\n", argv[0]);
+[-t threads per workgroup] [-d device] [-v verbosity level [0,1,2,3]] [-w warmups] [-c csv-file]\n", argv[0]);
       exit (EXIT_SUCCESS);
     }
   }
