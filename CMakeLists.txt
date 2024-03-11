@@ -34,6 +34,18 @@ elseif (${MODEL} STREQUAL "Kokkos")
     add_compile_definitions(USE_KOKKOS)
     target_link_libraries(bench_f32 Kokkos::kokkos)
     target_link_libraries(bench_f64 Kokkos::kokkos)
+
+    if (${KOKKOS_BACK_END} STREQUAL "CUDA")
+        enable_language(CUDA)
+        set(CMAKE_CUDA_STANDARD 17)
+
+        set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE CUDA)
+    elseif (${KOKKOS_BACK_END} STREQUAL "HIP")
+        enable_language(HIP)
+        set(CMAKE_HIP_STANDARD 17)
+
+        set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE HIP)
+    endif ()
 elseif (${MODEL} STREQUAL "RAJA")
     set(CMAKE_CXX_STANDARD 14)
 

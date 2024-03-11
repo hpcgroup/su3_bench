@@ -2,3 +2,4 @@
 *.exe
 *tmp*
 build*
+spack*
