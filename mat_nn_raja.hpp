@@ -6,13 +6,13 @@
 
 #if defined(RAJA_ENABLE_CUDA)
   using launch_policy = RAJA::LaunchPolicy<RAJA::cuda_launch_t<false>>;
-  using teams_x = RAJA::LoopPolicy<RAJA::cuda_block_x_loop>;
+  using teams_x = RAJA::LoopPolicy<RAJA::cuda_block_x_direct>;
   using threads_x = RAJA::LoopPolicy<RAJA::cuda_thread_x_direct>;
   using threads_y = RAJA::LoopPolicy<RAJA::cuda_thread_y_direct>;
   using threads_z = RAJA::LoopPolicy<RAJA::cuda_thread_z_direct>;
 #elif defined(RAJA_ENABLE_HIP)
   using launch_policy = RAJA::LaunchPolicy<RAJA::hip_launch_t<false>>;
-  using teams_x = RAJA::LoopPolicy<RAJA::hip_block_x_loop>;
+  using teams_x = RAJA::LoopPolicy<RAJA::hip_block_x_direct>;
   using threads_x = RAJA::LoopPolicy<RAJA::hip_thread_x_direct>;
   using threads_y = RAJA::LoopPolicy<RAJA::hip_thread_y_direct>;
   using threads_z = RAJA::LoopPolicy<RAJA::hip_thread_z_direct>;
