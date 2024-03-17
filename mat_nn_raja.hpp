@@ -63,22 +63,17 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
       tprofiling = tstart;
     }
     RAJA::launch<launch_policy>(RAJA::ExecPlace::DEVICE,
-      RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(sites_per_block * 4,3,3)),
+      RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(threadsPerBlock)),
         [=] RAJA_HOST_DEVICE (RAJA::LaunchContext ctx) {
-          RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, (teams)), [&] (int site) {
-            RAJA::loop<threads_x>(ctx, RAJA::TypedRangeSegment<int>(0, sites_per_block * 4), [&] (int j) {
+          RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, total_sites), [&] (int i) {
+            RAJA::loop<threads_x>(ctx, RAJA::TypedRangeSegment<int>(0, 4), [&] (int j) {
               RAJA::loop<threads_y>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int k) {
                 RAJA::loop<threads_z>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int l) {
-                  const int site_id = j / sites_per_block;
-                  const int my_site = (site * sites_per_block) + site_id;
-                  const int jj = j % 4;
-                  if ( my_site < total_sites ) {
-                    Complx cc = {0.0, 0.0};
-                    for (int m = 0; m < 3; m++) {
-                      cc += d_a[my_site].link[jj].e[k][m] * d_b[jj].e[m][l];
-                    }
-                    d_c[my_site].link[jj].e[k][l] = cc;
+                  Complx cc = {0.0, 0.0};
+                  for (int m = 0; m < 3; m++) {
+                    cc += d_a[i].link[j].e[k][m] * d_b[j].e[m][l];
                   }
+                  d_c[i].link[j].e[k][l] = cc;
                 });
               });
            });
