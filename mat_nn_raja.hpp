@@ -18,6 +18,19 @@
   using threads_z = RAJA::LoopPolicy<RAJA::hip_thread_z_direct>;
 #endif
 
+static void synchronize() {
+    // nothing to do for host devices
+#if defined(RAJA_ENABLE_CUDA)
+    RAJA::synchronize<RAJA::cuda_synchronize>();
+#endif
+#if defined(RAJA_ENABLE_HIP)
+    RAJA::synchronize<RAJA::hip_synchronize>();
+#endif
+#if defined(RAJA_ENABLE_SYCL)
+    RAJA::synchronize<RAJA::sycl_synchronize>();
+#endif
+}
+
 double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, size_t total_sites, size_t iterations, size_t threadsPerBlock, int device, Profile* profile) {
   size_t size_a = sizeof(site) * total_sites;
   size_t size_b = sizeof(su3_matrix) * 4;
@@ -54,18 +67,25 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   const int sites_per_block = threadsPerBlock / THREADS_PER_SITE;
   const int teams = RAJA_DIVIDE_CEILING_INT(total_sites, sites_per_block);
 
+
+  if (verbose >= 1) {
+    printf("Number of blocks set to %d\n", teams);
+    printf("Threads per block set to %d\n", threadsPerBlock);
+  }
+
   auto tstart = Clock::now();
   tprofiling = tstart;
   
   for (size_t iters = 0; iters < iterations + warmups; ++iters) {
     if (iters == warmups) {
+      cudaDeviceSynchronize();
       tstart = Clock::now();
       tprofiling = tstart;
     }
     RAJA::launch<launch_policy>(RAJA::ExecPlace::DEVICE,
       RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(threadsPerBlock)),
         [=] RAJA_HOST_DEVICE (RAJA::LaunchContext ctx) {
-          RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, total_sites), [&] (int i) {
+          RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, teams), [&] (int i) {
             RAJA::loop<threads_x>(ctx, RAJA::TypedRangeSegment<int>(0, 4), [&] (int j) {
               RAJA::loop<threads_y>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int k) {
                 RAJA::loop<threads_z>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int l) {
@@ -80,6 +100,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
         });
       });
   }
+  cudaDeviceSynchronize();
   profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
 

@@ -14,19 +14,17 @@
 //  matrix multiply, no adjoints 
 //  C  <-  A*B	
 
-__global__ void k_mat_nn(const site *a, const su3_matrix *b, site *c, int total_sites) {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void k_mat_nn(const site * __restrict__ a, const su3_matrix * __restrict__ b, site * __restrict__ c) {
+  const int i = blockIdx.x;
 
-  for (; i < total_sites; i += gridDim.x * blockDim.x) {
-    for (int j = threadIdx.x; j < 4; j++) {
-      for (int k = threadIdx.y; k < 3; k++) {
-        for (int l = threadIdx.z; l < 3; l++) {
-          Complx cc = {0.0, 0.0};
-          for (int m = 0; m < 3; m++) {
-            cc += a[i].link[j].e[k][m] * b[j].e[m][l];
-          }
-          c[i].link[j].e[k][l] = cc; 
+  for (int j = threadIdx.x; j < 4; j += blockDim.x) {
+    for (int k = threadIdx.y; k < 3; k += blockDim.y) {
+      for (int l = threadIdx.z; l < 3; l += blockDim.z) {
+        Complx cc = {0.0, 0.0};
+        for (int m = 0; m < 3; m++) {
+          cc += a[i].link[j].e[k][m] * b[j].e[m][l];
         }
+        c[i].link[j].e[k][l] = cc; 
       }
     }
   }
@@ -35,7 +33,6 @@ __global__ void k_mat_nn(const site *a, const su3_matrix *b, site *c, int total_
 double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, 
 		  size_t total_sites, size_t iterations, size_t threadsPerBlock, int use_device, Profile *profile)
 {
-  int blocksPerGrid;
   int size_a = sizeof(site) * total_sites;
   int size_b = sizeof(su3_matrix) * 4;
   int size_c = sizeof(site) * total_sites;
@@ -87,8 +84,8 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
   profile->host_to_device_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
 
-  double sitesPerBlock = (double)threadsPerBlock / THREADS_PER_SITE;
-  blocksPerGrid = total_sites/sitesPerBlock + 0.999999;
+  const int sitesPerBlock = threadsPerBlock / THREADS_PER_SITE;
+  const int blocksPerGrid = (total_sites + sitesPerBlock - 1) / sitesPerBlock;
 
   if (verbose >= 1) {
     printf("Number of blocks set to %d\n", blocksPerGrid);
@@ -105,7 +102,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
       tstart = Clock::now();
       tprofiling = tstart;
     }
-    k_mat_nn<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, total_sites);
+    k_mat_nn<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c);
   }
   cudaDeviceSynchronize();
   profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
