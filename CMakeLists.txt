@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.21)
 project(SU3 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
