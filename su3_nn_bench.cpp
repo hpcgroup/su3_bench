@@ -259,6 +259,7 @@ int main(int argc, char **argv)
   fflush(stdout);
 
   // Verification of the result
+  bool result = true;
   for (size_t i=0;i<total_sites;++i) for(int j=0;j<4;++j)  for(int k=0;k<3;++k)  for(int l=0;l<3;++l) {
     Complx cc = {0.0, 0.0};
     for(int m=0;m<3;m++) {
@@ -272,13 +273,18 @@ int main(int argc, char **argv)
     }
 
     #ifdef MILC_COMPLEX
-      assert(almost_equal(c[i].link[j].e[k][l].real, cc.real, 1E-6));
-      assert(almost_equal(c[i].link[j].e[k][l].imag, cc.imag, 1E-6));
+      result = almost_equal(c[i].link[j].e[k][l].real, cc.real, 1E-6);
+      result = almost_equal(c[i].link[j].e[k][l].imag, cc.imag, 1E-6);
     #elif USE_KOKKOS
-      assert(almost_equal(c(i).link[j].e[k][l], cc, 1E-6));
+      result = almost_equal(c(i).link[j].e[k][l], cc, 1E-6);
     #else
-      assert(almost_equal(c[i].link[j].e[k][l], cc, 1E-6));
+      result = almost_equal(c[i].link[j].e[k][l], cc, 1E-6);
     #endif
+
+      if (!result) {
+        fprintf(stderr, "Verification Failed!\n");
+        return EXIT_FAILURE;
+      }
   }
 
   // check memory usage
@@ -288,5 +294,7 @@ int main(int argc, char **argv)
     if (getrusage(RUSAGE_SELF, &usage) == 0)
       printf("Approximate memory usage = %.3f MiB\n", (float)usage.ru_maxrss/1024.0);
   }
+
+  return EXIT_SUCCESS;
 }
 
