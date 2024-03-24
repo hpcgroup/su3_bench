@@ -6,17 +6,30 @@
 
 #if defined(RAJA_ENABLE_CUDA)
   using launch_policy = RAJA::LaunchPolicy<RAJA::cuda_launch_t<false>>;
-  using teams_x = RAJA::LoopPolicy<RAJA::cuda_block_x_loop>;
+  using teams_x = RAJA::LoopPolicy<RAJA::cuda_global_x_direct>;
   using threads_x = RAJA::LoopPolicy<RAJA::cuda_thread_x_direct>;
   using threads_y = RAJA::LoopPolicy<RAJA::cuda_thread_y_direct>;
   using threads_z = RAJA::LoopPolicy<RAJA::cuda_thread_z_direct>;
 #elif defined(RAJA_ENABLE_HIP)
   using launch_policy = RAJA::LaunchPolicy<RAJA::hip_launch_t<false>>;
-  using teams_x = RAJA::LoopPolicy<RAJA::hip_block_x_loop>;
+  using teams_x = RAJA::LoopPolicy<RAJA::hip_global_x_direct>;
   using threads_x = RAJA::LoopPolicy<RAJA::hip_thread_x_direct>;
   using threads_y = RAJA::LoopPolicy<RAJA::hip_thread_y_direct>;
   using threads_z = RAJA::LoopPolicy<RAJA::hip_thread_z_direct>;
 #endif
+
+static void synchronize() {
+    // nothing to do for host devices
+#if defined(RAJA_ENABLE_CUDA)
+    RAJA::synchronize<RAJA::cuda_synchronize>();
+#endif
+#if defined(RAJA_ENABLE_HIP)
+    RAJA::synchronize<RAJA::hip_synchronize>();
+#endif
+#if defined(RAJA_ENABLE_SYCL)
+    RAJA::synchronize<RAJA::sycl_synchronize>();
+#endif
+}
 
 double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, size_t total_sites, size_t iterations, size_t threadsPerBlock, int device, Profile* profile) {
   size_t size_a = sizeof(site) * total_sites;
@@ -51,42 +64,44 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
   profile->host_to_device_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
 
-  constexpr int threads_per_side = 4 * 3 * 3;
-  constexpr int threads_per_block = 256;
-  constexpr int sides_per_block = threads_per_block / threads_per_side;
-  const int teams = (total_sites + sides_per_block - 1) / sides_per_block;
+  const int sites_per_block = threadsPerBlock / THREADS_PER_SITE;
+  const int teams = RAJA_DIVIDE_CEILING_INT(total_sites, sites_per_block);
+
+  if (verbose >= 1) {
+    printf("Number of blocks set to %d\\n", teams);
+    printf("Threads per block set to %d\\n", threadsPerBlock);
+  }
 
   auto tstart = Clock::now();
   tprofiling = tstart;
   
   for (size_t iters = 0; iters < iterations + warmups; ++iters) {
     if (iters == warmups) {
+      cudaDeviceSynchronize();
       tstart = Clock::now();
       tprofiling = tstart;
     }
+
     RAJA::launch<launch_policy>(RAJA::ExecPlace::DEVICE,
-      RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(sides_per_block*4,3,3)),
-        [=] RAJA_HOST_DEVICE (RAJA::LaunchContext ctx) {
-          RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, (teams)), [&] (int site) {
-            RAJA::loop<threads_x>(ctx, RAJA::TypedRangeSegment<int>(0, sides_per_block *4), [&] (int j) {
-              RAJA::loop<threads_y>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int k) {
-                RAJA::loop<threads_z>(ctx, RAJA::TypedRangeSegment<int>(0, 3), [&] (int l) {
-                  const int site_id = j / sides_per_block;
-                  const int my_site = (site * sides_per_block) + site_id;
-                  const int jj = j % 4;
-                  if ( my_site < total_sites ) {
-                    Complx cc = {0.0, 0.0};
-                    for (int m = 0; m < 3; m++) {
-                      cc += d_a[my_site].link[jj].e[k][m] * d_b[jj].e[m][l];
-                    }
-                    d_c[my_site].link[jj].e[k][l] = cc;
-                  }
-                });
-              });
-           });
+      RAJA::LaunchParams(RAJA::Teams(teams), RAJA::Threads(threadsPerBlock)),
+      [=] RAJA_HOST_DEVICE (RAJA::LaunchContext ctx) {
+        RAJA::loop<teams_x>(ctx, RAJA::TypedRangeSegment<int>(0, teams * threadsPerBlock), [&] (int tid) {
+          int i = tid / 36;
+          if (i < total_sites) {
+            int j = (tid % 36) / 9;
+            int k = (tid % 9) / 3;
+            int l = tid % 3;
+
+            Complx cc{};
+            for (int m = 0; m < 3; m++)
+              cc += d_a[i].link[j].e[k][m] * d_b[j].e[m][l];
+  
+            d_c[i].link[j].e[k][l] = cc;
+          }
         });
       });
   }
+  synchronize();
   profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
 
@@ -96,3 +111,4 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
   return (ttotal /= 1.0e6);
 }
+
