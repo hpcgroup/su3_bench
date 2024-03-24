@@ -1,5 +1,4 @@
 // OpenACC implementation
-
 double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, 
 		  size_t total_sites, size_t iterations, size_t threads_per_team, int use_device, Profile* profile) {
   site * __restrict__ d_a = std::data(a);
@@ -22,7 +21,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
     }
 
     #pragma acc parallel loop collapse(4)
-    for (size_t i = 0; i < total_sites; i++) {
+    for (int i = 0; i < total_sites; i++) {
       for (int j = 0; j < 4; j++) {
         for (int k = 0; k < 3; k++) {
           for (int l = 0; l < 3; l++) {
