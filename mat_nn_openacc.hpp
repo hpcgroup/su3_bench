@@ -25,9 +25,8 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
       tstart = Clock::now();
       tprofiling = tstart;
     }
-    #pragma acc parallel loop gang present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
+    #pragma acc parallel loop collapse(4) present(d_a[0:len_a], d_b[0:len_b], d_c[0:len_c])
     for(int i=0;i<total_sites;++i) {
-      #pragma acc loop worker vector collapse(3)
       for (int j=0; j<4; ++j) {
         for(int k=0;k<3;k++) {
           for(int l=0;l<3;l++){
