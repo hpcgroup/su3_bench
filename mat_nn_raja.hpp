@@ -18,6 +18,7 @@
   using threads_z = RAJA::LoopPolicy<RAJA::hip_thread_z_direct>;
 #endif
 
+/*
 static void synchronize() {
     // nothing to do for host devices
 #if defined(RAJA_ENABLE_CUDA)
@@ -30,6 +31,7 @@ static void synchronize() {
     RAJA::synchronize<RAJA::sycl_synchronize>();
 #endif
 }
+*/
 
 double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<site> &c, size_t total_sites, size_t iterations, size_t threadsPerBlock, int device, Profile* profile) {
   size_t size_a = sizeof(site) * total_sites;
@@ -74,10 +76,9 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
   auto tstart = Clock::now();
   tprofiling = tstart;
-  
+
   for (size_t iters = 0; iters < iterations + warmups; ++iters) {
     if (iters == warmups) {
-      cudaDeviceSynchronize();
       tstart = Clock::now();
       tprofiling = tstart;
     }
@@ -95,13 +96,11 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
             Complx cc{};
             for (int m = 0; m < 3; m++)
               cc += d_a[i].link[j].e[k][m] * d_b[j].e[m][l];
-  
             d_c[i].link[j].e[k][l] = cc;
           }
         });
       });
   }
-  synchronize();
   profile->kernel_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
 
@@ -111,4 +110,3 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
 
   return (ttotal /= 1.0e6);
 }
-
