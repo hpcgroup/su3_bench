@@ -90,7 +90,11 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
                   if ( my_site < total_sites ) {
                     Complx cc = {0.0, 0.0};
                     for (int m = 0; m < 3; m++) {
-                      cc += d_a[my_site].link[jj].e[k][m] * d_b[jj].e[m][l];
+#ifdef MILC_COMPLEX
+                      CMULSUM(a[my_site].link[j].e[k][m], b[j].e[m][l], cc);
+#else
+                      cc += a[my_site].link[j].e[k][m] * b[j].e[m][l];
+#endif
                     }
                     d_c[my_site].link[jj].e[k][l] = cc;
                   }

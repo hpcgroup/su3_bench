@@ -18,6 +18,10 @@ add_executable(bench_f64 ${SOURCES})
 
 target_compile_definitions(bench_f32 PUBLIC PRECISION=1)
 
+if (NOT ${MODEL} STREQUAL "Kokkos")
+  add_compile_definitions(MILC_COMPLEX)
+endif ()
+
 if (${MODEL} STREQUAL "CUDA")
     enable_language(CUDA)
     set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE CUDA)
@@ -74,7 +78,7 @@ elseif (${MODEL} STREQUAL "RAJA")
     endif ()
 elseif (${MODEL} STREQUAL "SYCL")
     set(CMAKE_CXX_STANDARD 17)
-    add_compile_definitions(USE_SYCL MILC_COMPLEX)
+    add_compile_definitions(USE_SYCL)
 
     find_package(AdaptiveCpp)
     if (AdaptiveCpp_FOUND)
@@ -91,7 +95,7 @@ elseif (${MODEL} STREQUAL "SYCL")
     target_link_options(bench_f64 PUBLIC "$<$<CONFIG:RELEASE>:${OFFLOAD_FLAGS}>")
 elseif (${MODEL} STREQUAL "DPCPP")
     set(CMAKE_CXX_STANDARD 17)
-  add_compile_definitions(USE_DPCPP MILC_COMPLEX)
+    add_compile_definitions(USE_DPCPP)
 
     find_package(AdaptiveCpp)
     if (AdaptiveCpp_FOUND)
