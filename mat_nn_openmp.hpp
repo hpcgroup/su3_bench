@@ -174,8 +174,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
         for(int m=0;m<3;m++) {
            CMULSUM(d_a[i].link[j].e[k][m], d_b[j].e[m][l], cc);
         }
-        d_c[i].link[j].e[k][l].real = cc.real;
-        d_c[i].link[j].e[k][l].imag = cc.imag;
+        d_c[i].link[j].e[k][l] = cc;
 #endif
       }
     }
@@ -236,8 +235,7 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
             for(int m=0;m<3;m++) {
                CMULSUM(d_a[i].link[j].e[k][m], d_b[j].e[m][l], cc);
             }
-            d_c[i].link[j].e[k][l].real = cc.real;
-            d_c[i].link[j].e[k][l].imag = cc.imag;
+            d_c[i].link[j].e[k][l] = cc;
 #endif
           }
         }
