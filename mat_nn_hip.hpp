@@ -90,7 +90,12 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   CUCHECK(cuErr, "Unable to allocate array d_b");
   cuErr = hipMalloc((void **)&d_c, size_c);
   CUCHECK(cuErr, "Unable to allocate array d_c");
+  //host to device
+  printf("[SU3_DEBUG] Transfer (H2D): Array d_a | Type: site | Elements: %zu | Total: %d bytes\n", 
+          total_sites, size_a);
   hipMemcpy(d_a, a.data(), size_a, hipMemcpyHostToDevice);
+  printf("[SU3_DEBUG] Transfer (H2D): Array d_b | Type: su3_matrix | Elements: 4 | Total: %d bytes\n", 
+          size_b);
   hipMemcpy(d_b, b.data(), size_b, hipMemcpyHostToDevice);
 
   profile->host_to_device_time = (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
@@ -120,7 +125,9 @@ double su3_mat_nn(std::vector<site> &a, std::vector<su3_matrix> &b, std::vector<
   double ttotal = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tstart).count();
   CUCHECK(hipGetLastError(), "k_mat_nn kernel Failed");
 
-  // copy data back from device
+  // copy data back from device (device to host)
+  printf("[SU3_DEBUG] Transfer (D2H): Array d_c | Type: site | Elements: %zu | Total: %d bytes\n", 
+          total_sites, size_c);
   tprofiling = Clock::now();
   hipMemcpy(c.data(), d_c, size_c, hipMemcpyDeviceToHost);
   profile->device_to_host_time= (std::chrono::duration_cast<std::chrono::microseconds>(Clock::now()-tprofiling).count())/1.0e6;
