@@ -1,0 +1,12 @@
+Number of sites = 32^4
+Executing 100000 iterations with 10000 warmups
+[SU3_DEBUG] Transfer (H2D): Array d_a | Type: site | Elements: 1048576 | Total: 335544320 bytes
+[SU3_DEBUG] Transfer (H2D): Array d_b | Type: su3_matrix | Elements: 4 | Total: 288 bytes
+Number of blocks set to 294912
+Threads per block set to 128
+[SU3_DEBUG] Transfer (D2H): Array d_c | Type: site | Elements: 1048576 | Total: 335544320 bytes
+Total execution time = 22.856768 secs
+host_to_device_ms,kernel_ms,device_to_host_ms,num_iterations,num_warmups
+305.530000,22856.762000,252.421000,100000,10000
+Total GFLOP/s = 3963.682
+Total GByte/s (GPU memory)  = 2936.062
