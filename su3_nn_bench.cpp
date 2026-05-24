@@ -128,6 +128,8 @@ void make_lattice(site *s, size_t n, Complx val) {
   #include "mat_nn_openmp2.hpp"
 #elif  USE_OPENACC
   #include "mat_nn_openacc.hpp"
+#elif USE_ACC_AS_OMP
+  #include "mat_nn_acc_as_omp.hpp"
 #elif  USE_OPENCL
   // OpenCL 1.2 doesn't support complex data types
   #define MILC_COMPLEX
