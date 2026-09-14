@@ -16,6 +16,14 @@
   using threads_x = RAJA::LoopPolicy<RAJA::hip_thread_x_direct>;
   using threads_y = RAJA::LoopPolicy<RAJA::hip_thread_y_direct>;
   using threads_z = RAJA::LoopPolicy<RAJA::hip_thread_z_direct>;
+#elif defined(RAJA_ENABLE_SYCL)
+  // RAJA's SYCL launch maps Threads/Teams x,y,z onto SYCL nd_range dims 2,1,0
+  // (SYCL dim 2 is the fastest varying), so CUDA/HIP "x" == sycl_*_2.
+  using launch_policy = RAJA::LaunchPolicy<RAJA::sycl_launch_t<false>>;
+  using teams_x = RAJA::LoopPolicy<RAJA::sycl_group_2_loop>;
+  using threads_x = RAJA::LoopPolicy<RAJA::sycl_local_2_direct>;
+  using threads_y = RAJA::LoopPolicy<RAJA::sycl_local_1_direct>;
+  using threads_z = RAJA::LoopPolicy<RAJA::sycl_local_0_direct>;
 #endif
 
 static void synchronize() {
@@ -27,7 +35,8 @@ static void synchronize() {
   RAJA::synchronize<RAJA::hip_synchronize>();
 #endif
 #if defined(RAJA_ENABLE_SYCL)
-  RAJA::synchronize<RAJA::sycl_synchronize>();
+  // RAJA (<=2025.03) has no sycl_synchronize policy; wait on the shared camp queue
+  ::camp::resources::Sycl::get_default().get_queue()->wait_and_throw();
 #endif
 }
 
